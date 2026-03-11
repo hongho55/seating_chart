@@ -16,6 +16,12 @@ import {
 } from './lib/layouts';
 import { inferGenderFromText, randomizeSeats } from './lib/randomize';
 import {
+  clearSeatAssignments,
+  createClassroomSnapshot,
+  removeStudentFromClassroom,
+  restoreSnapshotToClassroom,
+} from './lib/classroomState';
+import {
   createBackupFile,
   createEmptyClassroom,
   loadAppData,
@@ -28,7 +34,6 @@ import type {
   DeskVariant,
   ConflictRule,
   GenderMode,
-  LayoutSnapshot,
   Seat,
   SeatPreset,
   Student,
@@ -89,32 +94,6 @@ function getGroupLabelForSeat(classroom: Classroom, seat: Seat | null): string {
   }
 
   return classroom.groups.find((group) => group.id === seat.groupId)?.label ?? '배치됨';
-}
-
-function removeStudentFromSeats(seats: Seat[], studentId: string): Seat[] {
-  return seats.map((seat) =>
-    seat.assignedStudentId === studentId ? { ...seat, assignedStudentId: null, fixed: false } : seat,
-  );
-}
-
-function clearSeatAssignments(seats: Seat[]): Seat[] {
-  return seats.map((seat) => ({
-    ...seat,
-    assignedStudentId: null,
-    fixed: false,
-  }));
-}
-
-function createSnapshot(name: string, classroom: Classroom, viewMode: ViewMode): LayoutSnapshot {
-  return {
-    id: createId('snapshot'),
-    name,
-    createdAt: new Date().toISOString(),
-    seats: cloneSeats(classroom.seats),
-    groups: cloneGroups(classroom.groups),
-    layoutConfig: { ...classroom.layoutConfig },
-    viewMode,
-  };
 }
 
 function parseStudentLines(raw: string): Student[] {
@@ -551,12 +530,7 @@ export default function App() {
 
   function handleDeleteStudent(studentId: string) {
     updateActiveClassroom((classroom) => ({
-      ...classroom,
-      students: classroom.students.filter((student) => student.id !== studentId),
-      rules: classroom.rules.filter(
-        (rule) => rule.studentAId !== studentId && rule.studentBId !== studentId,
-      ),
-      seats: removeStudentFromSeats(classroom.seats, studentId),
+      ...removeStudentFromClassroom(classroom, studentId),
       updatedAt: new Date().toISOString(),
     }));
 
@@ -712,7 +686,10 @@ export default function App() {
 
     updateActiveClassroom((classroom) => ({
       ...classroom,
-      snapshots: [createSnapshot(name, classroom, classroom.lastViewMode), ...classroom.snapshots],
+      snapshots: [
+        createClassroomSnapshot(name, classroom, classroom.lastViewMode),
+        ...classroom.snapshots,
+      ],
       updatedAt: new Date().toISOString(),
     }));
   }
@@ -729,11 +706,7 @@ export default function App() {
     }
 
     updateActiveClassroom((classroom) => ({
-      ...classroom,
-      seats: cloneSeats(snapshot.seats),
-      groups: cloneGroups(snapshot.groups),
-      layoutConfig: { ...snapshot.layoutConfig },
-      lastViewMode: snapshot.viewMode,
+      ...restoreSnapshotToClassroom(classroom, snapshot),
       updatedAt: new Date().toISOString(),
     }));
   }
@@ -754,10 +727,10 @@ export default function App() {
 
     reader.onload = () => {
       const raw = typeof reader.result === 'string' ? reader.result : '';
-      const importedData = parseBackupFile(raw);
+      const { data: importedData, error } = parseBackupFile(raw);
 
       if (!importedData) {
-        window.alert('올바른 좌석표 백업 파일이 아닙니다.');
+        window.alert(error ? `백업 파일을 가져올 수 없습니다: ${error}` : '올바른 좌석표 백업 파일이 아닙니다.');
         return;
       }
 
