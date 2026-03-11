@@ -1,5 +1,11 @@
 import type { Seat } from '../types';
 
+export function hasAssignedSeatAssignments(
+  seats: ReadonlyArray<Pick<Seat, 'assignedStudentId'>>,
+): boolean {
+  return seats.some((seat) => seat.assignedStudentId !== null);
+}
+
 export function sanitizeSeatAssignments(
   seats: Seat[],
   validStudentIds: Iterable<string>,

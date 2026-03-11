@@ -358,6 +358,62 @@ textarea {
   gap: 8px;
 }
 
+.base-plan-arm-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.base-plan-arm-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid rgba(48, 75, 92, 0.14);
+  border-radius: 18px;
+  background: #ffffff;
+  color: #20303d;
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    opacity 120ms ease;
+}
+
+.base-plan-arm-toggle span:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(32, 48, 61, 0.08);
+  color: #51636d;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.base-plan-arm-toggle.active {
+  border-color: rgba(212, 162, 26, 0.48);
+  background: #fbf3d7;
+}
+
+.base-plan-arm-toggle.active span:last-child {
+  background: #f4c95d;
+  color: #5b4100;
+}
+
+.base-plan-arm-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.base-plan-arm-helper.active {
+  color: #7a5b04;
+}
+
 .preset-grid-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;

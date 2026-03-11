@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { BasePlanArmControl } from './components/BasePlanArmControl';
 import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import {
@@ -41,6 +42,9 @@ import {
   createDefaultAppMode,
   isBasePlanEditMode,
 } from './lib/appMode';
+import {
+  hasAssignedSeatAssignments,
+} from './lib/seatAssignments';
 import {
   createBackupFile,
   createEmptyClassroom,
@@ -331,6 +335,9 @@ export default function App() {
     genderMisses: number;
     unplacedStudents: number;
   } | null>(null);
+  const [basePlanApplyArmedClassroomId, setBasePlanApplyArmedClassroomId] = useState<string | null>(
+    null,
+  );
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
   const [appMode, setAppMode] = useState(() => createDefaultAppMode());
   const [basePlanEditSession, setBasePlanEditSession] = useState<BasePlanEditSession | null>(null);
@@ -380,6 +387,14 @@ export default function App() {
     activeClassroom && basePlanEditSession?.classroomId === activeClassroom.id
       ? basePlanEditSession
       : null;
+  const basePlanAvailable = activeClassroom
+    ? hasAssignedSeatAssignments(activeClassroom.basePlan.seats)
+    : false;
+  const basePlanApplyArmed =
+    !!activeClassroom &&
+    !basePlanEditModeActive &&
+    basePlanAvailable &&
+    basePlanApplyArmedClassroomId === activeClassroom.id;
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
@@ -422,6 +437,19 @@ export default function App() {
     activeClassroom?.layoutConfig.cols,
   ]);
 
+  useEffect(() => {
+    if (!basePlanApplyArmedClassroomId) {
+      return;
+    }
+
+    const armedClassroom =
+      data.classrooms.find((classroom) => classroom.id === basePlanApplyArmedClassroomId) ?? null;
+
+    if (!armedClassroom || !hasAssignedSeatAssignments(armedClassroom.basePlan.seats)) {
+      setBasePlanApplyArmedClassroomId(null);
+    }
+  }, [basePlanApplyArmedClassroomId, data.classrooms]);
+
   function updateActiveClassroom(
     updater: (classroom: Classroom) => Classroom,
   ) {
@@ -447,6 +475,7 @@ export default function App() {
       );
     }
 
+    setBasePlanApplyArmedClassroomId(null);
     setBasePlanEditSession(null);
     setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
@@ -471,6 +500,7 @@ export default function App() {
       classrooms: [...current.classrooms, classroom],
       activeClassroomId: classroom.id,
     }));
+    setBasePlanApplyArmedClassroomId(null);
     setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
     setRandomSummary(null);
@@ -509,6 +539,7 @@ export default function App() {
     setSelectedStudentIds([]);
     setRandomSummary(null);
     setRuleDraft({ studentAId: '', studentBId: '' });
+    setBasePlanApplyArmedClassroomId(null);
     setBasePlanEditSession(null);
     setAppMode(createDefaultAppMode());
     setClassroomMenuOpen(false);
@@ -524,12 +555,15 @@ export default function App() {
       ...current,
       activeClassroomId: classroomId,
     }));
+    setBasePlanApplyArmedClassroomId(null);
   }
 
   function handleToggleBasePlanEditMode() {
     if (!activeClassroom) {
       return;
     }
+
+    setBasePlanApplyArmedClassroomId(null);
 
     if (basePlanEditModeActive) {
       closeBasePlanEditMode();
@@ -662,6 +696,17 @@ export default function App() {
     updateActiveClassroom((classroom) => deleteRuleFromClassroom(classroom, ruleId));
   }
 
+  function handleToggleBasePlanApplyArmed() {
+    if (!activeClassroom || basePlanEditModeActive || !basePlanAvailable) {
+      return;
+    }
+
+    setBasePlanApplyArmedClassroomId((current) =>
+      current === activeClassroom.id ? null : activeClassroom.id,
+    );
+    setRandomSummary(null);
+  }
+
   function applyRandomize(
     classroomToRandomize: Classroom,
     applyRandomizedSeats: (classroom: Classroom, seats: Classroom['seats']) => Classroom = setClassroomSeats,
@@ -686,6 +731,14 @@ export default function App() {
 
     if (basePlanEditModeActive) {
       applyRandomize(activeClassroom);
+      return;
+    }
+
+    if (basePlanApplyArmed) {
+      updateActiveClassroom(restoreBasePlanInClassroom);
+      setBasePlanApplyArmedClassroomId(null);
+      setSelectedStudentIds([]);
+      setRandomSummary(null);
       return;
     }
 
@@ -785,6 +838,7 @@ export default function App() {
       setBulkStudents('');
       setRuleDraft({ studentAId: '', studentBId: '' });
       setRandomSummary(null);
+      setBasePlanApplyArmedClassroomId(null);
       setBasePlanEditSession(null);
       setAppMode(createDefaultAppMode());
       setClassroomMenuOpen(false);
@@ -1345,9 +1399,16 @@ export default function App() {
                           기준 배치 편집 중에는 상단 액션에서 `전체 랜덤` 또는 `미고정만 랜덤`을 사용합니다.
                         </p>
                       ) : (
-                        <button className="primary-button" type="button" onClick={handleRandomize}>
-                          조건 반영 랜덤 배치
-                        </button>
+                        <>
+                          <BasePlanArmControl
+                            armed={basePlanApplyArmed}
+                            disabled={!basePlanAvailable}
+                            onToggle={handleToggleBasePlanApplyArmed}
+                          />
+                          <button className="primary-button" type="button" onClick={handleRandomize}>
+                            조건 반영 랜덤 배치
+                          </button>
+                        </>
                       )}
                       {randomSummary ? (
                         <div className="status-card">
