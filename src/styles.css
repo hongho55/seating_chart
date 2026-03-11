@@ -544,23 +544,34 @@ textarea {
 
 .seat-pin-button {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: -8px;
+  right: -8px;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: 0;
+  border: 2px solid rgba(255, 255, 255, 0.92);
   border-radius: 999px;
-  background: rgba(32, 48, 61, 0.08);
+  background: rgba(244, 247, 248, 0.98);
+  box-shadow: 0 4px 10px rgba(32, 48, 61, 0.14);
   color: #71838d;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .seat-pin-button.active {
-  background: #e0f3ed;
-  color: #1d8a65;
+  border-color: #0f6b4e;
+  background: #1d8a65;
+  box-shadow: 0 6px 14px rgba(29, 138, 101, 0.28);
+  color: #f7fffb;
+  transform: scale(1.05);
 }
 
 .drag-handle {
