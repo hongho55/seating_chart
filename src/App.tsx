@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -16,8 +16,10 @@ import {
 } from './lib/layouts';
 import { inferGenderFromText, randomizeSeats } from './lib/randomize';
 import {
+  createBackupFile,
   createEmptyClassroom,
   loadAppData,
+  parseBackupFile,
   saveAppData,
 } from './lib/storage';
 import type {
@@ -95,6 +97,14 @@ function removeStudentFromSeats(seats: Seat[], studentId: string): Seat[] {
   );
 }
 
+function clearSeatAssignments(seats: Seat[]): Seat[] {
+  return seats.map((seat) => ({
+    ...seat,
+    assignedStudentId: null,
+    fixed: false,
+  }));
+}
+
 function createSnapshot(name: string, classroom: Classroom, viewMode: ViewMode): LayoutSnapshot {
   return {
     id: createId('snapshot'),
@@ -137,6 +147,28 @@ function parseStudentLines(raw: string): Student[] {
       };
     })
     .filter((student) => student.name);
+}
+
+function createBackupFilename(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const date = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+
+  return `seating-chart-backup-${year}${month}${date}-${hours}${minutes}${seconds}.json`;
+}
+
+function downloadTextFile(filename: string, contents: string): void {
+  const blob = new Blob([contents], { type: 'application/json;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
 }
 
 function flipFrame(
@@ -285,6 +317,7 @@ export default function App() {
   const boardShellRef = useRef<HTMLDivElement | null>(null);
   const classroomPickerRef = useRef<HTMLDivElement | null>(null);
   const createPanelRef = useRef<HTMLDivElement | null>(null);
+  const backupFileInputRef = useRef<HTMLInputElement | null>(null);
   const clearSelectedStudentsTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -376,6 +409,10 @@ export default function App() {
     }));
   }
 
+  function openBackupImportPicker() {
+    backupFileInputRef.current?.click();
+  }
+
   function handleCreateClassroom() {
     const classroom = createEmptyClassroom(newClassroom);
 
@@ -385,6 +422,41 @@ export default function App() {
       activeClassroomId: classroom.id,
     }));
     setSelectedStudentIds([]);
+    setCreatePanelOpen(false);
+  }
+
+  function handleDeleteActiveClassroom() {
+    if (!activeClassroom) {
+      return;
+    }
+
+    const confirmMessage =
+      data.classrooms.length === 1
+        ? `"${classroomTitle(activeClassroom)}"을 삭제하면 반이 없는 상태가 됩니다. 계속할까요?`
+        : `"${classroomTitle(activeClassroom)}"을 삭제할까요?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setData((current) => {
+      const deletedIndex = current.classrooms.findIndex(
+        (classroom) => classroom.id === activeClassroom.id,
+      );
+      const classrooms = current.classrooms.filter((classroom) => classroom.id !== activeClassroom.id);
+      const fallbackClassroom =
+        classrooms[Math.min(deletedIndex, classrooms.length - 1)] ?? classrooms[0] ?? null;
+
+      return {
+        ...current,
+        classrooms,
+        activeClassroomId: fallbackClassroom?.id ?? null,
+      };
+    });
+    setSelectedStudentIds([]);
+    setRandomSummary(null);
+    setRuleDraft({ studentAId: '', studentBId: '' });
+    setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
   }
 
@@ -446,6 +518,35 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     }));
     setBulkStudents('');
+  }
+
+  function handleResetStudents() {
+    if (!activeClassroom || activeClassroom.students.length === 0) {
+      return;
+    }
+
+    const shouldReset = window.confirm(
+      `"${classroomTitle(activeClassroom)}"의 학생 ${activeClassroom.students.length}명, 자리 배치, 금지 규칙을 모두 초기화할까요?`,
+    );
+
+    if (!shouldReset) {
+      return;
+    }
+
+    updateActiveClassroom((classroom) => ({
+      ...classroom,
+      students: [],
+      rules: [],
+      seats: clearSeatAssignments(classroom.seats),
+      snapshots: classroom.snapshots.map((snapshot) => ({
+        ...snapshot,
+        seats: clearSeatAssignments(snapshot.seats),
+      })),
+      updatedAt: new Date().toISOString(),
+    }));
+    setSelectedStudentIds([]);
+    setRuleDraft({ studentAId: '', studentBId: '' });
+    setRandomSummary(null);
   }
 
   function handleDeleteStudent(studentId: string) {
@@ -637,6 +738,54 @@ export default function App() {
     }));
   }
 
+  function handleDownloadBackup() {
+    downloadTextFile(createBackupFilename(), createBackupFile(data));
+  }
+
+  function handleBackupFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const raw = typeof reader.result === 'string' ? reader.result : '';
+      const importedData = parseBackupFile(raw);
+
+      if (!importedData) {
+        window.alert('올바른 좌석표 백업 파일이 아닙니다.');
+        return;
+      }
+
+      const shouldReplace = window.confirm(
+        `현재 저장된 반 ${data.classrooms.length}개를 백업 파일 내용으로 덮어쓸까요?`,
+      );
+
+      if (!shouldReplace) {
+        return;
+      }
+
+      setData(importedData);
+      setLastSavedAt(new Date().toISOString());
+      setSelectedStudentIds([]);
+      setBulkStudents('');
+      setRuleDraft({ studentAId: '', studentBId: '' });
+      setRandomSummary(null);
+      setClassroomMenuOpen(false);
+      setCreatePanelOpen(false);
+    };
+
+    reader.onerror = () => {
+      window.alert('백업 파일을 읽지 못했습니다.');
+    };
+
+    reader.readAsText(file, 'utf-8');
+  }
+
   function handlePrint(nextMode: ViewMode) {
     applyPrintLayout(renderCanvasWidth, renderCanvasHeight);
 
@@ -767,6 +916,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <input
+        ref={backupFileInputRef}
+        accept=".json,application/json"
+        hidden
+        type="file"
+        onChange={handleBackupFileChange}
+      />
       <main className="workspace">
         {activeClassroom ? (
           <>
@@ -860,6 +1016,13 @@ export default function App() {
                     </div>
                   ) : null}
                 </div>
+                <button
+                  className="danger-button print-hidden"
+                  type="button"
+                  onClick={handleDeleteActiveClassroom}
+                >
+                  반 삭제
+                </button>
                 <div className="button-row print-hidden">
                   <button
                     className={viewMode === 'teacher' ? 'mode-button active' : 'mode-button'}
@@ -1176,6 +1339,11 @@ export default function App() {
                       <button className="primary-button" type="button" onClick={handleAddStudents}>
                         학생 명단 추가
                       </button>
+                      {activeClassroom.students.length > 0 ? (
+                        <button className="danger-button" type="button" onClick={handleResetStudents}>
+                          학생 전체 초기화
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="inspector-section">
@@ -1290,6 +1458,18 @@ export default function App() {
 
                 {inspectorTab === 'saved' ? (
                   <div className="inspector-section">
+                    <div className="mini-title">통합 백업</div>
+                    <p className="helper-text">
+                      현재 만들어진 모든 반이 하나의 JSON 파일로 함께 저장됩니다. 불러오기는 전체 데이터를 덮어씁니다.
+                    </p>
+                    <div className="button-stack">
+                      <button className="primary-button" type="button" onClick={handleDownloadBackup}>
+                        전체 백업 다운로드
+                      </button>
+                      <button className="secondary-button" type="button" onClick={openBackupImportPicker}>
+                        백업 불러오기
+                      </button>
+                    </div>
                     <div className="mini-title">저장본</div>
                     <div className="snapshot-list">
                       {activeClassroom.snapshots.map((snapshot) => (
@@ -1314,8 +1494,48 @@ export default function App() {
           </>
         ) : (
           <section className="empty-state">
-            <h2>반이 없습니다.</h2>
-            <p>왼쪽에서 새 반을 만들거나 샘플 반을 불러오면 바로 시작할 수 있습니다.</p>
+            <div className="panel empty-state-card">
+              <h2>반이 없습니다.</h2>
+              <p>새 반을 만들거나 통합 백업 파일을 불러오면 바로 다시 시작할 수 있습니다.</p>
+              <label className="field">
+                <span>학년</span>
+                <input
+                  value={newClassroom.grade}
+                  onChange={(event) =>
+                    setNewClassroom((current) => ({ ...current, grade: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>반</span>
+                <input
+                  value={newClassroom.className}
+                  onChange={(event) =>
+                    setNewClassroom((current) => ({ ...current, className: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>교실</span>
+                <input
+                  value={newClassroom.subjectRoomName}
+                  onChange={(event) =>
+                    setNewClassroom((current) => ({
+                      ...current,
+                      subjectRoomName: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <div className="button-stack">
+                <button className="primary-button" type="button" onClick={handleCreateClassroom}>
+                  첫 반 만들기
+                </button>
+                <button className="secondary-button" type="button" onClick={openBackupImportPicker}>
+                  백업 불러오기
+                </button>
+              </div>
+            </div>
           </section>
         )}
       </main>

@@ -3,6 +3,14 @@ import { cloneGroups, cloneSeats, createPresetLayout, getDefaultVariant } from '
 import type { AppData, Classroom, LayoutPresetConfig, ViewMode } from '../types';
 
 const STORAGE_KEY = 'seating-chart.app.v1';
+const BACKUP_FORMAT = 'seating-chart-backup';
+
+interface AppBackupFile {
+  format: typeof BACKUP_FORMAT;
+  version: number;
+  exportedAt: string;
+  appData: AppData;
+}
 
 function now(): string {
   return new Date().toISOString();
@@ -103,6 +111,53 @@ export function createDefaultData(): AppData {
   };
 }
 
+function normalizeAppData(input: unknown): AppData | null {
+  if (!input || typeof input !== 'object') {
+    return null;
+  }
+
+  const parsed = input as Partial<AppData>;
+
+  if (!Array.isArray(parsed.classrooms)) {
+    return null;
+  }
+
+  const classrooms = parsed.classrooms.map((classroom) => ({
+    ...classroom,
+    seats: cloneSeats(classroom.seats ?? []),
+    groups: cloneGroups(classroom.groups ?? []),
+    layoutConfig:
+      classroom.layoutConfig ??
+      inferLayoutConfig({
+        groups: cloneGroups(classroom.groups ?? []),
+        seats: cloneSeats(classroom.seats ?? []),
+      }),
+    snapshots: (classroom.snapshots ?? []).map((snapshot) => ({
+      ...snapshot,
+      seats: cloneSeats(snapshot.seats ?? []),
+      groups: cloneGroups(snapshot.groups ?? []),
+      layoutConfig:
+        snapshot.layoutConfig ??
+        inferLayoutConfig({
+          groups: cloneGroups(snapshot.groups ?? []),
+          seats: cloneSeats(snapshot.seats ?? []),
+        }),
+    })),
+  }));
+
+  const activeClassroomId =
+    classrooms.some((classroom) => classroom.id === parsed.activeClassroomId)
+      ? parsed.activeClassroomId ?? null
+      : classrooms[0]?.id ?? null;
+
+  return {
+    version: parsed.version ?? 1,
+    classrooms,
+    activeClassroomId,
+    recentPrintMode: (parsed.recentPrintMode as ViewMode | undefined) ?? 'teacher',
+  };
+}
+
 export function loadAppData(): AppData {
   if (typeof window === 'undefined') {
     return createDefaultData();
@@ -115,35 +170,8 @@ export function loadAppData(): AppData {
   }
 
   try {
-    const parsed = JSON.parse(raw) as AppData;
-
-    return {
-      version: parsed.version ?? 1,
-      classrooms: (parsed.classrooms ?? []).map((classroom) => ({
-        ...classroom,
-        seats: cloneSeats(classroom.seats ?? []),
-        groups: cloneGroups(classroom.groups ?? []),
-        layoutConfig:
-          classroom.layoutConfig ??
-          inferLayoutConfig({
-            groups: cloneGroups(classroom.groups ?? []),
-            seats: cloneSeats(classroom.seats ?? []),
-          }),
-        snapshots: (classroom.snapshots ?? []).map((snapshot) => ({
-          ...snapshot,
-          seats: cloneSeats(snapshot.seats ?? []),
-          groups: cloneGroups(snapshot.groups ?? []),
-          layoutConfig:
-            snapshot.layoutConfig ??
-            inferLayoutConfig({
-              groups: cloneGroups(snapshot.groups ?? []),
-              seats: cloneSeats(snapshot.seats ?? []),
-            }),
-        })),
-      })),
-      activeClassroomId: parsed.activeClassroomId ?? parsed.classrooms?.[0]?.id ?? null,
-      recentPrintMode: (parsed.recentPrintMode as ViewMode | undefined) ?? 'teacher',
-    };
+    const normalized = normalizeAppData(JSON.parse(raw));
+    return normalized ?? createDefaultData();
   } catch {
     return createDefaultData();
   }
@@ -155,4 +183,35 @@ export function saveAppData(data: AppData): void {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+export function createBackupFile(data: AppData): string {
+  const payload: AppBackupFile = {
+    format: BACKUP_FORMAT,
+    version: 1,
+    exportedAt: now(),
+    appData: data,
+  };
+
+  return JSON.stringify(payload, null, 2);
+}
+
+export function parseBackupFile(raw: string): AppData | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<AppBackupFile> | AppData;
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'format' in parsed &&
+      parsed.format === BACKUP_FORMAT &&
+      'appData' in parsed
+    ) {
+      return normalizeAppData(parsed.appData);
+    }
+
+    return normalizeAppData(parsed);
+  } catch {
+    return null;
+  }
 }
