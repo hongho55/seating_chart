@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
+import { applyBasePlanToClassroom } from './lib/basePlanState';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -26,6 +27,7 @@ import {
   restoreSnapshotInClassroom,
   saveBasePlanInClassroom,
   saveClassroomSnapshot,
+  setSeatsFromBasePlanInClassroom,
   setClassroomSeats,
   swapStudentsInClassroom,
   toggleSeatPinInClassroom,
@@ -626,11 +628,14 @@ export default function App() {
     updateActiveClassroom((classroom) => deleteRuleFromClassroom(classroom, ruleId));
   }
 
-  function applyRandomize(classroomToRandomize: Classroom) {
+  function applyRandomize(
+    classroomToRandomize: Classroom,
+    applyRandomizedSeats: (classroom: Classroom, seats: Classroom['seats']) => Classroom = setClassroomSeats,
+  ) {
     startTransition(() => {
       const result = randomizeSeats(classroomToRandomize);
 
-      updateActiveClassroom((classroom) => setClassroomSeats(classroom, result.seats));
+      updateActiveClassroom((classroom) => applyRandomizedSeats(classroom, result.seats));
       setRandomSummary({
         conflicts: result.conflicts,
         genderMisses: result.genderMisses,
@@ -645,7 +650,15 @@ export default function App() {
       return;
     }
 
-    applyRandomize(activeClassroom);
+    if (basePlanEditModeActive) {
+      applyRandomize(activeClassroom);
+      return;
+    }
+
+    applyRandomize(
+      applyBasePlanToClassroom(activeClassroom),
+      setSeatsFromBasePlanInClassroom,
+    );
   }
 
   function handleRandomizeAllSeats() {

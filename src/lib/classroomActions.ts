@@ -188,6 +188,16 @@ export function setClassroomSeats(classroom: Classroom, seats: Classroom['seats'
   });
 }
 
+export function setSeatsFromBasePlanInClassroom(
+  classroom: Classroom,
+  seats: Classroom['seats'],
+): Classroom {
+  return touchClassroomLayout({
+    ...applyBasePlanToClassroom(classroom),
+    seats: cloneSeats(seats),
+  });
+}
+
 export function restoreBasePlanInClassroom(classroom: Classroom): Classroom {
   return touchClassroomLayout(applyBasePlanToClassroom(classroom));
 }
