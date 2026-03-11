@@ -364,8 +364,9 @@ textarea {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 308px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) clamp(248px, 18vw, 280px);
+  gap: 12px;
+  align-items: start;
 }
 
 .canvas-section {
@@ -375,40 +376,12 @@ textarea {
   padding: 12px;
 }
 
-.canvas-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 0 0 2px;
-}
-
-.canvas-toolbar-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.selection-hint,
 .helper-text {
   margin: 0;
   color: #667680;
   font-size: 0.84rem;
 }
 
-.toolbar-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-}
-
-.toolbar-icon-button svg,
 .seat-pin-button svg {
   width: 18px;
   height: 18px;
@@ -419,7 +392,7 @@ textarea {
   border-radius: 22px;
   border: 1px solid rgba(32, 48, 61, 0.08);
   background: #eef2f4;
-  padding: 8px;
+  padding: 6px;
 }
 
 .board-stage {
@@ -427,14 +400,22 @@ textarea {
   justify-content: center;
   align-items: flex-start;
   width: 100%;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.board-stage-inner {
+  flex: 0 0 auto;
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .board-canvas {
-  position: relative;
+  position: absolute;
+  inset: 0 auto auto 0;
   width: 980px;
   border-radius: 22px;
-  transform-origin: top center;
+  transform-origin: top left;
   background:
     linear-gradient(0deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.56)),
     repeating-linear-gradient(
@@ -493,8 +474,7 @@ textarea {
   font-size: 0.72rem;
   font-weight: 700;
   color: #20303d;
-  pointer-events: auto;
-  cursor: grab;
+  pointer-events: none;
 }
 
 .seat-card {
@@ -607,17 +587,25 @@ textarea {
 .inspector {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
+  position: sticky;
+  top: 14px;
 }
 
 .inspector-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+}
+
+.inspector-tabs .mode-button {
+  padding: 10px 12px;
+  font-size: 0.94rem;
 }
 
 .inspector-section {
-  padding: 16px;
+  padding: 14px;
+  gap: 8px;
 }
 
 .status-card {
@@ -637,7 +625,8 @@ textarea {
 .student-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .rule-item {
@@ -652,7 +641,7 @@ textarea {
 
 .snapshot-list,
 .student-list {
-  max-height: 48vh;
+  max-height: 44vh;
   overflow-y: auto;
 }
 
@@ -683,8 +672,7 @@ textarea {
     padding: 12px;
   }
 
-  .topbar,
-  .canvas-toolbar {
+  .topbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -760,7 +748,14 @@ textarea {
     overflow: visible;
   }
 
+  .board-stage-inner {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
   .board-canvas {
+    position: relative;
+    inset: auto;
     transform: scale(var(--print-scale-portrait, 1)) !important;
     transform-origin: top left;
     margin: 0;

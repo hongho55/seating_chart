@@ -288,8 +288,8 @@ export function createPresetLayout(config: LayoutPresetConfig): { seats: Seat[];
 
   const visibleWidth = bounds.maxX - bounds.minX;
   const visibleHeight = bounds.maxY - bounds.minY;
-  const targetCanvasWidth = Math.max(CANVAS_WIDTH, visibleWidth + CANVAS_PADDING_X * 2);
-  const targetLeft = Math.round((targetCanvasWidth - visibleWidth) / 2);
+  const targetCanvasWidth = visibleWidth + CANVAS_PADDING_X * 2;
+  const targetLeft = CANVAS_PADDING_X;
   const targetTop = CANVAS_PADDING_Y;
   const shiftX = targetLeft - bounds.minX;
   const shiftY = targetTop - bounds.minY;

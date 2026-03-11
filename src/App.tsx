@@ -1,5 +1,4 @@
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -47,24 +46,10 @@ const GENDER_MODE_LABELS: Record<GenderMode, string> = {
   mixed: '이성 우선',
 };
 
-const SNAP_GRID = 16;
 const PRINT_MARGIN_MM = 8;
 const MM_TO_PX = 96 / 25.4;
 const PRINT_SAFETY_SCALE = 0.96;
 const SEAT_PIN_OVERHANG = 12;
-
-type DragState = {
-  pointerId: number;
-  groupId: string;
-  flipped: boolean;
-  startClientX: number;
-  startClientY: number;
-  startSeatPositions: Record<string, { x: number; y: number }>;
-  minDeltaX: number;
-  maxDeltaX: number;
-  minDeltaY: number;
-  maxDeltaY: number;
-} | null;
 
 type InspectorTab = 'layout' | 'students' | 'rules' | 'saved';
 
@@ -296,7 +281,6 @@ export default function App() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
-  const [dragState, setDragState] = useState<DragState>(null);
   const [boardScale, setBoardScale] = useState(1);
   const boardShellRef = useRef<HTMLDivElement | null>(null);
   const classroomPickerRef = useRef<HTMLDivElement | null>(null);
@@ -341,17 +325,19 @@ export default function App() {
     ? layoutBounds.maxX - layoutBounds.minX
     : CANVAS_WIDTH - CANVAS_PADDING_X * 2;
   const renderCanvasWidth = Math.max(
-    CANVAS_WIDTH,
+    CANVAS_PADDING_X * 2 + SEAT_CARD_WIDTH,
     layoutVisibleWidth + CANVAS_PADDING_X * 2,
   );
   const renderOffsetX = layoutBounds
-    ? Math.round((renderCanvasWidth - layoutVisibleWidth) / 2) - layoutBounds.minX
+    ? CANVAS_PADDING_X - layoutBounds.minX
     : 0;
   const renderCanvasHeight = Math.max(
     CANVAS_PADDING_Y * 2 + SEAT_CARD_HEIGHT,
     (layoutBounds?.maxY ?? SEAT_CARD_HEIGHT) + CANVAS_PADDING_Y + 12,
   );
   const flippedView = isFlippedView(viewMode);
+  const scaledBoardWidth = renderCanvasWidth * boardScale;
+  const scaledBoardHeight = renderCanvasHeight * boardScale;
   const teacherBoardCenterX = layoutBounds
     ? layoutBounds.minX + (layoutBounds.maxX - layoutBounds.minX) / 2 + renderOffsetX
     : renderCanvasWidth / 2;
@@ -689,165 +675,6 @@ export default function App() {
     }));
   }
 
-  function handleResetLayout() {
-    if (!activeClassroom) {
-      return;
-    }
-
-    const nextLayout = createPresetLayout(activeClassroom.layoutConfig);
-    const seatStateByLabel = new Map(
-      activeClassroom.seats.map((seat) => [
-        seat.label,
-        {
-          assignedStudentId: seat.assignedStudentId,
-          fixed: seat.fixed,
-        },
-      ]),
-    );
-    const groupStateByLabel = new Map(
-      activeClassroom.groups.map((group) => [
-        group.label,
-        {
-          color: group.color,
-        },
-      ]),
-    );
-
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      seats: nextLayout.seats.map((seat) => {
-        const currentState = seatStateByLabel.get(seat.label);
-
-        return {
-          ...seat,
-          assignedStudentId: currentState?.assignedStudentId ?? null,
-          fixed: currentState?.assignedStudentId ? currentState.fixed : false,
-        };
-      }),
-      groups: nextLayout.groups.map((group) => ({
-        ...group,
-        color: groupStateByLabel.get(group.label)?.color ?? group.color,
-      })),
-      updatedAt: new Date().toISOString(),
-    }));
-    setSelectedStudentIds([]);
-  }
-
-  function handleGroupDragStart(event: ReactPointerEvent<HTMLButtonElement>, groupId: string) {
-    if (!activeClassroom || viewMode !== 'teacher') {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const groupSeats = activeClassroom.seats.filter((seat) => seat.groupId === groupId);
-
-    if (groupSeats.length === 0) {
-      return;
-    }
-
-    const startSeatPositions = Object.fromEntries(
-      groupSeats.map((seat) => [seat.id, { x: seat.x, y: seat.y }]),
-    );
-    const minX = Math.min(...groupSeats.map((seat) => seat.x));
-    const maxX = Math.max(
-      ...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH + getSeatVisibleOverhang(seat, viewMode)),
-    );
-    const minY = Math.min(...groupSeats.map((seat) => seat.y));
-    const maxY = Math.max(...groupSeats.map((seat) => seat.y + SEAT_CARD_HEIGHT));
-
-    setDragState({
-      groupId,
-      flipped: flippedView,
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startSeatPositions,
-      minDeltaX: CANVAS_PADDING_X + GROUP_OUTLINE_PADDING - (minX + renderOffsetX),
-      maxDeltaX: renderCanvasWidth - CANVAS_PADDING_X - GROUP_OUTLINE_PADDING - (maxX + renderOffsetX),
-      minDeltaY: CANVAS_PADDING_Y + GROUP_OUTLINE_PADDING - minY,
-      maxDeltaY: renderCanvasHeight - CANVAS_PADDING_Y + 4 - GROUP_OUTLINE_PADDING - maxY,
-    });
-  }
-
-  function applyGroupDelta(groupId: string, deltaX: number, deltaY: number) {
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      seats: classroom.seats.map((seat) => {
-        const startPosition = dragState?.startSeatPositions[seat.id];
-
-        if (seat.groupId !== groupId || !startPosition) {
-          return seat;
-        }
-
-        return {
-          ...seat,
-          x: startPosition.x + deltaX,
-          y: startPosition.y + deltaY,
-        };
-      }),
-      updatedAt: new Date().toISOString(),
-    }));
-  }
-
-  const handleWindowPointerMove = useEffectEvent((event: PointerEvent) => {
-    if (!dragState || event.pointerId !== dragState.pointerId || !activeClassroom) {
-      return;
-    }
-
-    const rawDeltaX = event.clientX - dragState.startClientX;
-    const rawDeltaY = event.clientY - dragState.startClientY;
-    const nextDeltaX = dragState.flipped ? -rawDeltaX : rawDeltaX;
-    const nextDeltaY = dragState.flipped ? -rawDeltaY : rawDeltaY;
-    const deltaX = Math.max(
-      dragState.minDeltaX,
-      Math.min(dragState.maxDeltaX, nextDeltaX),
-    );
-    const deltaY = Math.max(
-      dragState.minDeltaY,
-      Math.min(dragState.maxDeltaY, nextDeltaY),
-    );
-
-    applyGroupDelta(dragState.groupId, deltaX, deltaY);
-  });
-
-  const handleWindowPointerUp = useEffectEvent((event: PointerEvent) => {
-    if (!dragState || event.pointerId !== dragState.pointerId) {
-      return;
-    }
-
-    const pointerDeltaX = event.clientX - dragState.startClientX;
-    const pointerDeltaY = event.clientY - dragState.startClientY;
-    const rawDeltaX = Math.max(
-      dragState.minDeltaX,
-      Math.min(dragState.maxDeltaX, dragState.flipped ? -pointerDeltaX : pointerDeltaX),
-    );
-    const rawDeltaY = Math.max(
-      dragState.minDeltaY,
-      Math.min(dragState.maxDeltaY, dragState.flipped ? -pointerDeltaY : pointerDeltaY),
-    );
-    const snappedDeltaX = Math.round(rawDeltaX / SNAP_GRID) * SNAP_GRID;
-    const snappedDeltaY = Math.round(rawDeltaY / SNAP_GRID) * SNAP_GRID;
-
-    applyGroupDelta(
-      dragState.groupId,
-      Math.max(dragState.minDeltaX, Math.min(dragState.maxDeltaX, snappedDeltaX)),
-      Math.max(dragState.minDeltaY, Math.min(dragState.maxDeltaY, snappedDeltaY)),
-    );
-    setDragState(null);
-  });
-
-  useEffect(() => {
-    window.addEventListener('pointermove', handleWindowPointerMove);
-    window.addEventListener('pointerup', handleWindowPointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-    };
-  }, [handleWindowPointerMove, handleWindowPointerUp]);
-
   useEffect(() => {
     const shell = boardShellRef.current;
 
@@ -856,7 +683,8 @@ export default function App() {
     }
 
     const updateScale = () => {
-      const nextScale = Math.min(1, (shell.clientWidth - 40) / renderCanvasWidth);
+      const availableWidth = Math.max(shell.clientWidth - 12, 1);
+      const nextScale = Math.min(1, availableWidth / renderCanvasWidth);
       setBoardScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
     };
 
@@ -1064,172 +892,137 @@ export default function App() {
 
             <section className="workspace-grid">
               <section className="canvas-section">
-                <div className="canvas-toolbar print-hidden">
-                  <button
-                    className="secondary-button toolbar-icon-button"
-                    type="button"
-                    onClick={handleResetLayout}
-                    aria-label="레이아웃 리셋"
-                    title="레이아웃 리셋"
-                  >
-                    <svg viewBox="0 0 20 20" aria-hidden="true">
-                      <path
-                        d="M4.5 8A5.5 5.5 0 1 1 6 14.5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                      />
-                      <path
-                        d="M4.5 3.5V8h4.5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.8"
-                      />
-                    </svg>
-                  </button>
-                  <div className="selection-hint">
-                    학생 두 명 클릭: 자리 교환 / 핀 버튼: 고정 / 모둠 라벨 드래그: 블록 이동
-                  </div>
-                </div>
-
                 <div ref={boardShellRef} className="board-shell">
-                  <div className="board-stage" style={{ height: renderCanvasHeight * boardScale }}>
+                  <div className="board-stage" style={{ height: scaledBoardHeight }}>
                     <div
-                      className="board-canvas"
-                      style={{
-                        width: renderCanvasWidth,
-                        height: renderCanvasHeight,
-                        transform: `scale(${boardScale})`,
-                      }}
+                      className="board-stage-inner"
+                      style={{ width: scaledBoardWidth, height: scaledBoardHeight }}
                     >
-                    <div
-                      className={`board-label ${flippedView ? 'student-anchor' : ''}`}
-                      style={{ left: boardCenterX }}
-                    >
-                      {activeClassroom.boardLabel}
-                    </div>
-
-                    {activeClassroom.groups.map((group) => {
-                      const groupSeats = activeClassroom.seats.filter((seat) => group.seatIds.includes(seat.id));
-
-                      if (groupSeats.length === 0) {
-                        return null;
-                      }
-
-                      const minX = Math.min(...groupSeats.map((seat) => seat.x));
-                      const minY = Math.min(...groupSeats.map((seat) => seat.y));
-                      const maxX = Math.max(...groupSeats.map((seat) => seat.x));
-                      const maxY = Math.max(...groupSeats.map((seat) => seat.y));
-                      const groupFrame = flipFrame(
-                        minX - GROUP_OUTLINE_PADDING + renderOffsetX,
-                        minY - GROUP_OUTLINE_PADDING,
-                        maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
-                        maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
-                        renderCanvasWidth,
-                        renderCanvasHeight,
-                        viewMode,
-                      );
-
-                      return (
+                      <div
+                        className="board-canvas"
+                        style={{
+                          width: renderCanvasWidth,
+                          height: renderCanvasHeight,
+                          transform: `scale(${boardScale})`,
+                        }}
+                      >
                         <div
-                          key={group.id}
-                          className="seat-group-outline"
-                          style={{
-                            left: groupFrame.left,
-                            top: groupFrame.top,
-                            width: maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
-                            height: maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
-                            borderColor: group.color,
-                            backgroundColor: `${group.color}22`,
-                          }}
+                          className={`board-label ${flippedView ? 'student-anchor' : ''}`}
+                          style={{ left: boardCenterX }}
                         >
-                          {viewMode === 'teacher' ? (
-                            <button
-                              className="group-badge"
-                              type="button"
-                              onPointerDown={(event) => handleGroupDragStart(event, group.id)}
+                          {activeClassroom.boardLabel}
+                        </div>
+
+                        {activeClassroom.groups.map((group) => {
+                          const groupSeats = activeClassroom.seats.filter((seat) =>
+                            group.seatIds.includes(seat.id),
+                          );
+
+                          if (groupSeats.length === 0) {
+                            return null;
+                          }
+
+                          const minX = Math.min(...groupSeats.map((seat) => seat.x));
+                          const minY = Math.min(...groupSeats.map((seat) => seat.y));
+                          const maxX = Math.max(...groupSeats.map((seat) => seat.x));
+                          const maxY = Math.max(...groupSeats.map((seat) => seat.y));
+                          const groupFrame = flipFrame(
+                            minX - GROUP_OUTLINE_PADDING + renderOffsetX,
+                            minY - GROUP_OUTLINE_PADDING,
+                            maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
+                            maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
+                            renderCanvasWidth,
+                            renderCanvasHeight,
+                            viewMode,
+                          );
+
+                          return (
+                            <div
+                              key={group.id}
+                              className="seat-group-outline"
+                              style={{
+                                left: groupFrame.left,
+                                top: groupFrame.top,
+                                width: maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
+                                height: maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
+                                borderColor: group.color,
+                                backgroundColor: `${group.color}22`,
+                              }}
                             >
-                              {group.label}
-                            </button>
-                          ) : (
-                            <span className="group-badge">{group.label}</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                              <span className="group-badge">{group.label}</span>
+                            </div>
+                          );
+                        })}
 
-                    {activeClassroom.seats.map((seat) => {
-                      const student = activeClassroom.students.find(
-                        (candidate) => candidate.id === seat.assignedStudentId,
-                      );
-                      const studentSelected = student ? selectedStudentIds.includes(student.id) : false;
-                      const seatFrame = flipFrame(
-                        seat.x + renderOffsetX,
-                        seat.y,
-                        SEAT_CARD_WIDTH,
-                        SEAT_CARD_HEIGHT,
-                        renderCanvasWidth,
-                        renderCanvasHeight,
-                        viewMode,
-                      );
+                        {activeClassroom.seats.map((seat) => {
+                          const student = activeClassroom.students.find(
+                            (candidate) => candidate.id === seat.assignedStudentId,
+                          );
+                          const studentSelected = student ? selectedStudentIds.includes(student.id) : false;
+                          const seatFrame = flipFrame(
+                            seat.x + renderOffsetX,
+                            seat.y,
+                            SEAT_CARD_WIDTH,
+                            SEAT_CARD_HEIGHT,
+                            renderCanvasWidth,
+                            renderCanvasHeight,
+                            viewMode,
+                          );
 
-                      return (
-                        <div
-                          key={seat.id}
-                          className={`seat-card ${seat.fixed ? 'fixed' : ''} ${student ? 'clickable' : ''} ${studentSelected ? 'active' : ''}`}
-                          style={{ left: seatFrame.left, top: seatFrame.top }}
-                          onClick={() => {
-                            if (student && viewMode === 'teacher') {
-                              handleStudentSelect(student.id);
-                            }
-                          }}
-                          role={student && viewMode === 'teacher' ? 'button' : undefined}
-                          tabIndex={student && viewMode === 'teacher' ? 0 : undefined}
-                        >
-                          <div className="seat-content">
-                            {student && viewMode === 'teacher' ? (
-                              <button
-                                className={`seat-pin-button ${seat.fixed ? 'active' : ''}`}
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleToggleSeatPin(seat.id);
-                                }}
-                                aria-label={seat.fixed ? '고정 해제' : '자리 고정'}
-                                title={seat.fixed ? '고정 해제' : '자리 고정'}
-                              >
-                                <svg viewBox="0 0 20 20" aria-hidden="true">
-                                  <path
-                                    d="M7 3h6l-1.6 4.4 2.9 2.6H5.7l2.9-2.6L7 3Zm3 7.2V17"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="1.6"
-                                  />
-                                </svg>
-                              </button>
-                            ) : null}
-                            <strong>{student?.name || '빈자리'}</strong>
-                            <span className="seat-meta">
-                              {student
-                                ? `${student.number ? `${student.number}번` : '번호 없음'} · ${
-                                    student.gender === 'male'
-                                      ? '남'
-                                      : student.gender === 'female'
-                                        ? '여'
-                                        : '성별 미입력'
-                                  }`
-                                : '미배치'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                          return (
+                            <div
+                              key={seat.id}
+                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${student ? 'clickable' : ''} ${studentSelected ? 'active' : ''}`}
+                              style={{ left: seatFrame.left, top: seatFrame.top }}
+                              onClick={() => {
+                                if (student && viewMode === 'teacher') {
+                                  handleStudentSelect(student.id);
+                                }
+                              }}
+                              role={student && viewMode === 'teacher' ? 'button' : undefined}
+                              tabIndex={student && viewMode === 'teacher' ? 0 : undefined}
+                            >
+                              <div className="seat-content">
+                                {student && viewMode === 'teacher' ? (
+                                  <button
+                                    className={`seat-pin-button ${seat.fixed ? 'active' : ''}`}
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleToggleSeatPin(seat.id);
+                                    }}
+                                    aria-label={seat.fixed ? '고정 해제' : '자리 고정'}
+                                    title={seat.fixed ? '고정 해제' : '자리 고정'}
+                                  >
+                                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                                      <path
+                                        d="M7 3h6l-1.6 4.4 2.9 2.6H5.7l2.9-2.6L7 3Zm3 7.2V17"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="1.6"
+                                      />
+                                    </svg>
+                                  </button>
+                                ) : null}
+                                <strong>{student?.name || '빈자리'}</strong>
+                                <span className="seat-meta">
+                                  {student
+                                    ? `${student.number ? `${student.number}번` : '번호 없음'} · ${
+                                        student.gender === 'male'
+                                          ? '남'
+                                          : student.gender === 'female'
+                                            ? '여'
+                                            : '성별 미입력'
+                                      }`
+                                    : '미배치'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1242,7 +1035,7 @@ export default function App() {
                     type="button"
                     onClick={() => setInspectorTab('layout')}
                   >
-                    빠른 설정
+                    배치
                   </button>
                   <button
                     className={inspectorTab === 'students' ? 'mode-button active' : 'mode-button'}
@@ -1263,7 +1056,7 @@ export default function App() {
                     type="button"
                     onClick={() => setInspectorTab('saved')}
                   >
-                    저장본
+                    저장
                   </button>
                 </div>
 
@@ -1329,7 +1122,6 @@ export default function App() {
                         <span>
                           총 좌석 수: {presetRows * presetCols * (presetType === 'single' ? 1 : presetType === 'pair' ? 2 : presetType === 'group4' ? 4 : 6)}석
                         </span>
-                        <span>모둠 라벨을 잡고 끌면 블록 전체가 칸에 맞춰 이동합니다.</span>
                       </div>
                       <button className="primary-button" type="button" onClick={handleApplyPreset}>
                         프리셋 생성
