@@ -7,6 +7,11 @@ import {
   applyLayoutToClassroom,
   createBasePlan,
 } from './lib/basePlanState';
+import {
+  BASE_PLAN_REVEAL_STEP_MS,
+  createProgressiveBasePlanClassroom,
+  getBasePlanRevealSeatIds,
+} from './lib/basePlanReveal';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -86,6 +91,12 @@ type InspectorTab = 'layout' | 'students' | 'rules' | 'saved';
 type BasePlanEditSession = {
   classroomId: string;
   liveLayout: BasePlan;
+};
+
+type BasePlanRevealState = {
+  classroomId: string;
+  orderedSeatIds: string[];
+  visibleCount: number;
 };
 
 function createPersistedAppData(
@@ -341,6 +352,7 @@ export default function App() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
   const [appMode, setAppMode] = useState(() => createDefaultAppMode());
   const [basePlanEditSession, setBasePlanEditSession] = useState<BasePlanEditSession | null>(null);
+  const [basePlanReveal, setBasePlanReveal] = useState<BasePlanRevealState | null>(null);
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [boardScale, setBoardScale] = useState(1);
@@ -395,11 +407,27 @@ export default function App() {
     !basePlanEditModeActive &&
     basePlanAvailable &&
     basePlanApplyArmedClassroomId === activeClassroom.id;
-  const seatingActionHelperText = basePlanApplyArmed
-    ? '기준안 적용 예정 · 저장된 기준안을 그대로 공개합니다.'
-    : '일반 모드 · 성별 조건과 금지 조합을 반영해 새로 랜덤 배정합니다.';
+  const basePlanRevealActive =
+    !!activeClassroom &&
+    !!basePlanReveal &&
+    basePlanReveal.classroomId === activeClassroom.id;
+  const seatingActionHelperText =
+    basePlanRevealActive && basePlanReveal
+      ? `기준안 공개 중 · ${basePlanReveal.visibleCount}/${basePlanReveal.orderedSeatIds.length} 자리를 순서대로 보여주고 있습니다.`
+      : basePlanApplyArmed
+        ? '기준안 적용 예정 · 저장된 기준안을 그대로 공개합니다.'
+        : '일반 모드 · 성별 조건과 금지 조합을 반영해 새로 랜덤 배정합니다.';
+  const boardClassroom =
+    activeClassroom && basePlanRevealActive && basePlanReveal
+      ? createProgressiveBasePlanClassroom(
+          activeClassroom,
+          basePlanReveal.orderedSeatIds,
+          basePlanReveal.visibleCount,
+        )
+      : activeClassroom;
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
-  const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
+  const boardInteractionEnabled = viewMode === 'teacher' && !basePlanRevealActive;
+  const layoutBounds = boardClassroom ? getVisibleLayoutBounds(boardClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
     ? layoutBounds.maxX - layoutBounds.minX
     : CANVAS_WIDTH - CANVAS_PADDING_X * 2;
@@ -453,6 +481,61 @@ export default function App() {
     }
   }, [basePlanApplyArmedClassroomId, data.classrooms]);
 
+  useEffect(() => {
+    if (!basePlanReveal) {
+      return;
+    }
+
+    const revealClassroom =
+      data.classrooms.find((classroom) => classroom.id === basePlanReveal.classroomId) ?? null;
+
+    if (!revealClassroom || !hasAssignedSeatAssignments(revealClassroom.basePlan.seats)) {
+      setBasePlanReveal(null);
+      setBasePlanApplyArmedClassroomId((current) =>
+        current === basePlanReveal.classroomId ? null : current,
+      );
+      return;
+    }
+
+    if (basePlanReveal.visibleCount >= basePlanReveal.orderedSeatIds.length) {
+      updateClassroomById(basePlanReveal.classroomId, restoreBasePlanInClassroom);
+      setBasePlanApplyArmedClassroomId((current) =>
+        current === basePlanReveal.classroomId ? null : current,
+      );
+      setSelectedStudentIds([]);
+      setRandomSummary(null);
+      setBasePlanReveal(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setBasePlanReveal((current) =>
+        current && current.classroomId === basePlanReveal.classroomId
+          ? {
+              ...current,
+              visibleCount: Math.min(current.visibleCount + 1, current.orderedSeatIds.length),
+            }
+          : current,
+      );
+    }, BASE_PLAN_REVEAL_STEP_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [basePlanReveal, data.classrooms]);
+
+  function updateClassroomById(
+    classroomId: string,
+    updater: (classroom: Classroom) => Classroom,
+  ) {
+    setData((current) => ({
+      ...current,
+      classrooms: current.classrooms.map((classroom) =>
+        classroom.id === classroomId ? updater(classroom) : classroom,
+      ),
+    }));
+  }
+
   function updateActiveClassroom(
     updater: (classroom: Classroom) => Classroom,
   ) {
@@ -460,12 +543,7 @@ export default function App() {
       return;
     }
 
-    setData((current) => ({
-      ...current,
-      classrooms: current.classrooms.map((classroom) =>
-        classroom.id === activeClassroom.id ? updater(classroom) : classroom,
-      ),
-    }));
+    updateClassroomById(activeClassroom.id, updater);
   }
 
   function closeBasePlanEditMode(options?: { saveBasePlan?: boolean }) {
@@ -562,7 +640,7 @@ export default function App() {
   }
 
   function handleToggleBasePlanEditMode() {
-    if (!activeClassroom) {
+    if (!activeClassroom || basePlanRevealActive) {
       return;
     }
 
@@ -700,7 +778,7 @@ export default function App() {
   }
 
   function handleToggleBasePlanApplyArmed() {
-    if (!activeClassroom || basePlanEditModeActive || !basePlanAvailable) {
+    if (!activeClassroom || basePlanEditModeActive || !basePlanAvailable || basePlanRevealActive) {
       return;
     }
 
@@ -732,16 +810,31 @@ export default function App() {
       return;
     }
 
+    if (basePlanRevealActive) {
+      return;
+    }
+
     if (basePlanEditModeActive) {
       applyRandomize(activeClassroom);
       return;
     }
 
     if (basePlanApplyArmed) {
-      updateActiveClassroom(restoreBasePlanInClassroom);
-      setBasePlanApplyArmedClassroomId(null);
       setSelectedStudentIds([]);
       setRandomSummary(null);
+      const orderedSeatIds = getBasePlanRevealSeatIds(activeClassroom.basePlan.seats);
+
+      if (orderedSeatIds.length === 0) {
+        updateActiveClassroom(restoreBasePlanInClassroom);
+        setBasePlanApplyArmedClassroomId(null);
+        return;
+      }
+
+      setBasePlanReveal({
+        classroomId: activeClassroom.id,
+        orderedSeatIds,
+        visibleCount: 1,
+      });
       return;
     }
 
@@ -1164,8 +1257,8 @@ export default function App() {
                           {activeClassroom.boardLabel}
                         </div>
 
-                        {activeClassroom.groups.map((group) => {
-                          const groupSeats = activeClassroom.seats.filter((seat) =>
+                        {boardClassroom!.groups.map((group) => {
+                          const groupSeats = boardClassroom!.seats.filter((seat) =>
                             group.seatIds.includes(seat.id),
                           );
 
@@ -1205,11 +1298,14 @@ export default function App() {
                           );
                         })}
 
-                        {activeClassroom.seats.map((seat) => {
-                          const student = activeClassroom.students.find(
+                        {boardClassroom!.seats.map((seat) => {
+                          const student = boardClassroom!.students.find(
                             (candidate) => candidate.id === seat.assignedStudentId,
                           );
-                          const studentSelected = student ? selectedStudentIds.includes(student.id) : false;
+                          const studentSelected =
+                            boardInteractionEnabled && student
+                              ? selectedStudentIds.includes(student.id)
+                              : false;
                           const seatFrame = flipFrame(
                             seat.x + renderOffsetX,
                             seat.y,
@@ -1223,18 +1319,18 @@ export default function App() {
                           return (
                             <div
                               key={seat.id}
-                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${student ? 'clickable' : ''} ${studentSelected ? 'active' : ''}`}
+                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${student && boardInteractionEnabled ? 'clickable' : ''} ${studentSelected ? 'active' : ''}`}
                               style={{ left: seatFrame.left, top: seatFrame.top }}
                               onClick={() => {
-                                if (student && viewMode === 'teacher') {
+                                if (student && boardInteractionEnabled) {
                                   handleStudentSelect(student.id);
                                 }
                               }}
-                              role={student && viewMode === 'teacher' ? 'button' : undefined}
-                              tabIndex={student && viewMode === 'teacher' ? 0 : undefined}
+                              role={student && boardInteractionEnabled ? 'button' : undefined}
+                              tabIndex={student && boardInteractionEnabled ? 0 : undefined}
                             >
                               <div className="seat-content">
-                                {student && viewMode === 'teacher' ? (
+                                {student && boardInteractionEnabled ? (
                                   <button
                                     className={`seat-pin-button ${seat.fixed ? 'active' : ''}`}
                                     type="button"
@@ -1405,11 +1501,21 @@ export default function App() {
                         <>
                           <BasePlanArmControl
                             armed={basePlanApplyArmed}
-                            disabled={!basePlanAvailable}
+                            disabled={!basePlanAvailable || basePlanRevealActive}
+                            helperText={
+                              basePlanRevealActive
+                                ? '기준안 공개 중 · 저장된 배치를 한 자리씩 보여주고 있습니다.'
+                                : undefined
+                            }
                             onToggle={handleToggleBasePlanApplyArmed}
                           />
-                          <button className="primary-button" type="button" onClick={handleRandomize}>
-                            자리 배정 시작
+                          <button
+                            className="primary-button"
+                            type="button"
+                            onClick={handleRandomize}
+                            disabled={basePlanRevealActive}
+                          >
+                            {basePlanRevealActive ? '기준안 공개 중...' : '자리 배정 시작'}
                           </button>
                           <p className="helper-text">{seatingActionHelperText}</p>
                         </>

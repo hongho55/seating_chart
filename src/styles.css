@@ -321,6 +321,16 @@ textarea {
   transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
 }
 
+.primary-button:disabled,
+.secondary-button:disabled,
+.mode-button:disabled,
+.ghost-button:disabled,
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
 .primary-button {
   background: #20303d;
   color: #f6f1e8;
