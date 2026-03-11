@@ -173,26 +173,33 @@ function flipFrame(
   };
 }
 
-function getLayoutBounds(seats: Seat[]): { minX: number; maxX: number; minY: number; maxY: number } | null {
+function getSeatVisibleOverhang(seat: Seat, viewMode: ViewMode): number {
+  return viewMode === 'teacher' && seat.assignedStudentId ? SEAT_PIN_OVERHANG : 0;
+}
+
+function getLayoutBounds(
+  seats: Seat[],
+  viewMode: ViewMode,
+): { minX: number; maxX: number; minY: number; maxY: number } | null {
   if (seats.length === 0) {
     return null;
   }
 
   return {
     minX: Math.min(...seats.map((seat) => seat.x)),
-    maxX: Math.max(...seats.map((seat) => seat.x + SEAT_CARD_WIDTH + SEAT_PIN_OVERHANG)),
+    maxX: Math.max(...seats.map((seat) => seat.x + SEAT_CARD_WIDTH + getSeatVisibleOverhang(seat, viewMode))),
     minY: Math.min(...seats.map((seat) => seat.y)),
     maxY: Math.max(...seats.map((seat) => seat.y + SEAT_CARD_HEIGHT)),
   };
 }
 
-function getVisibleLayoutBounds(classroom: Classroom): {
+function getVisibleLayoutBounds(classroom: Classroom, viewMode: ViewMode): {
   minX: number;
   maxX: number;
   minY: number;
   maxY: number;
 } | null {
-  const seatBounds = getLayoutBounds(classroom.seats);
+  const seatBounds = getLayoutBounds(classroom.seats, viewMode);
 
   if (!seatBounds) {
     return null;
@@ -212,7 +219,11 @@ function getVisibleLayoutBounds(classroom: Classroom): {
 
     const groupMinX = Math.min(...groupSeats.map((seat) => seat.x)) - GROUP_OUTLINE_PADDING;
     const groupMaxX =
-      Math.max(...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH + SEAT_PIN_OVERHANG)) +
+      Math.max(
+        ...groupSeats.map(
+          (seat) => seat.x + SEAT_CARD_WIDTH + getSeatVisibleOverhang(seat, viewMode),
+        ),
+      ) +
       GROUP_OUTLINE_PADDING;
     const groupMinY = Math.min(...groupSeats.map((seat) => seat.y)) - GROUP_OUTLINE_PADDING - 12;
     const groupMaxY =
@@ -325,18 +336,24 @@ export default function App() {
 
   const activeClassroom = data.classrooms.find((classroom) => classroom.id === data.activeClassroomId) ?? null;
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
-  const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom) : null;
+  const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
+  const layoutVisibleWidth = layoutBounds
+    ? layoutBounds.maxX - layoutBounds.minX
+    : CANVAS_WIDTH - CANVAS_PADDING_X * 2;
   const renderCanvasWidth = Math.max(
     CANVAS_WIDTH,
-    (layoutBounds?.maxX ?? CANVAS_WIDTH - CANVAS_PADDING_X) + CANVAS_PADDING_X + 16,
+    layoutVisibleWidth + CANVAS_PADDING_X * 2,
   );
+  const renderOffsetX = layoutBounds
+    ? Math.round((renderCanvasWidth - layoutVisibleWidth) / 2) - layoutBounds.minX
+    : 0;
   const renderCanvasHeight = Math.max(
     CANVAS_PADDING_Y * 2 + SEAT_CARD_HEIGHT,
     (layoutBounds?.maxY ?? SEAT_CARD_HEIGHT) + CANVAS_PADDING_Y + 12,
   );
   const flippedView = isFlippedView(viewMode);
   const teacherBoardCenterX = layoutBounds
-    ? layoutBounds.minX + (layoutBounds.maxX - layoutBounds.minX) / 2
+    ? layoutBounds.minX + (layoutBounds.maxX - layoutBounds.minX) / 2 + renderOffsetX
     : renderCanvasWidth / 2;
   const boardCenterX =
     flippedView ? renderCanvasWidth - teacherBoardCenterX : teacherBoardCenterX;
@@ -734,7 +751,9 @@ export default function App() {
       groupSeats.map((seat) => [seat.id, { x: seat.x, y: seat.y }]),
     );
     const minX = Math.min(...groupSeats.map((seat) => seat.x));
-    const maxX = Math.max(...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH));
+    const maxX = Math.max(
+      ...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH + getSeatVisibleOverhang(seat, viewMode)),
+    );
     const minY = Math.min(...groupSeats.map((seat) => seat.y));
     const maxY = Math.max(...groupSeats.map((seat) => seat.y + SEAT_CARD_HEIGHT));
 
@@ -745,8 +764,8 @@ export default function App() {
       startClientX: event.clientX,
       startClientY: event.clientY,
       startSeatPositions,
-      minDeltaX: CANVAS_PADDING_X + GROUP_OUTLINE_PADDING - minX,
-      maxDeltaX: renderCanvasWidth - CANVAS_PADDING_X - GROUP_OUTLINE_PADDING - maxX,
+      minDeltaX: CANVAS_PADDING_X + GROUP_OUTLINE_PADDING - (minX + renderOffsetX),
+      maxDeltaX: renderCanvasWidth - CANVAS_PADDING_X - GROUP_OUTLINE_PADDING - (maxX + renderOffsetX),
       minDeltaY: CANVAS_PADDING_Y + GROUP_OUTLINE_PADDING - minY,
       maxDeltaY: renderCanvasHeight - CANVAS_PADDING_Y + 4 - GROUP_OUTLINE_PADDING - maxY,
     });
@@ -1106,7 +1125,7 @@ export default function App() {
                       const maxX = Math.max(...groupSeats.map((seat) => seat.x));
                       const maxY = Math.max(...groupSeats.map((seat) => seat.y));
                       const groupFrame = flipFrame(
-                        minX - GROUP_OUTLINE_PADDING,
+                        minX - GROUP_OUTLINE_PADDING + renderOffsetX,
                         minY - GROUP_OUTLINE_PADDING,
                         maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
                         maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
@@ -1149,7 +1168,7 @@ export default function App() {
                       );
                       const studentSelected = student ? selectedStudentIds.includes(student.id) : false;
                       const seatFrame = flipFrame(
-                        seat.x,
+                        seat.x + renderOffsetX,
                         seat.y,
                         SEAT_CARD_WIDTH,
                         SEAT_CARD_HEIGHT,
