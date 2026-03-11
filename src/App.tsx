@@ -51,6 +51,7 @@ const SNAP_GRID = 16;
 const PRINT_MARGIN_MM = 8;
 const MM_TO_PX = 96 / 25.4;
 const PRINT_SAFETY_SCALE = 0.96;
+const SEAT_PIN_OVERHANG = 12;
 
 type DragState = {
   pointerId: number;
@@ -179,7 +180,7 @@ function getLayoutBounds(seats: Seat[]): { minX: number; maxX: number; minY: num
 
   return {
     minX: Math.min(...seats.map((seat) => seat.x)),
-    maxX: Math.max(...seats.map((seat) => seat.x + SEAT_CARD_WIDTH)),
+    maxX: Math.max(...seats.map((seat) => seat.x + SEAT_CARD_WIDTH + SEAT_PIN_OVERHANG)),
     minY: Math.min(...seats.map((seat) => seat.y)),
     maxY: Math.max(...seats.map((seat) => seat.y + SEAT_CARD_HEIGHT)),
   };
@@ -211,7 +212,8 @@ function getVisibleLayoutBounds(classroom: Classroom): {
 
     const groupMinX = Math.min(...groupSeats.map((seat) => seat.x)) - GROUP_OUTLINE_PADDING;
     const groupMaxX =
-      Math.max(...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH)) + GROUP_OUTLINE_PADDING;
+      Math.max(...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH + SEAT_PIN_OVERHANG)) +
+      GROUP_OUTLINE_PADDING;
     const groupMinY = Math.min(...groupSeats.map((seat) => seat.y)) - GROUP_OUTLINE_PADDING - 12;
     const groupMaxY =
       Math.max(...groupSeats.map((seat) => seat.y + SEAT_CARD_HEIGHT)) + GROUP_OUTLINE_PADDING;
