@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -26,6 +27,11 @@ import {
   swapStudentsInClassroom,
   toggleSeatPinInClassroom,
 } from './lib/classroomActions';
+import {
+  createBasePlanEditMode,
+  createDefaultAppMode,
+  isBasePlanEditMode,
+} from './lib/appMode';
 import {
   createBackupFile,
   createEmptyClassroom,
@@ -294,6 +300,7 @@ export default function App() {
     unplacedStudents: number;
   } | null>(null);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
+  const [appMode, setAppMode] = useState(() => createDefaultAppMode());
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [boardScale, setBoardScale] = useState(1);
@@ -335,6 +342,7 @@ export default function App() {
   }, [selectedStudentIds]);
 
   const activeClassroom = data.classrooms.find((classroom) => classroom.id === data.activeClassroomId) ?? null;
+  const basePlanEditModeActive = isBasePlanEditMode(appMode, activeClassroom?.id ?? null);
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
@@ -404,6 +412,7 @@ export default function App() {
       classrooms: [...current.classrooms, classroom],
       activeClassroomId: classroom.id,
     }));
+    setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
     setCreatePanelOpen(false);
   }
@@ -439,6 +448,7 @@ export default function App() {
     setSelectedStudentIds([]);
     setRandomSummary(null);
     setRuleDraft({ studentAId: '', studentBId: '' });
+    setAppMode(createDefaultAppMode());
     setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
   }
@@ -448,9 +458,25 @@ export default function App() {
       ...current,
       activeClassroomId: classroomId,
     }));
+    setAppMode(createDefaultAppMode());
     setClassroomMenuOpen(false);
     setSelectedStudentIds([]);
     setRandomSummary(null);
+  }
+
+  function handleToggleBasePlanEditMode() {
+    if (!activeClassroom) {
+      return;
+    }
+
+    setAppMode((current) =>
+      isBasePlanEditMode(current, activeClassroom.id)
+        ? createDefaultAppMode()
+        : createBasePlanEditMode(activeClassroom.id),
+    );
+    setSelectedStudentIds([]);
+    setClassroomMenuOpen(false);
+    setCreatePanelOpen(false);
   }
 
   function handleApplyPreset() {
@@ -653,6 +679,7 @@ export default function App() {
       setBulkStudents('');
       setRuleDraft({ studentAId: '', studentBId: '' });
       setRandomSummary(null);
+      setAppMode(createDefaultAppMode());
       setClassroomMenuOpen(false);
       setCreatePanelOpen(false);
     };
@@ -804,40 +831,47 @@ export default function App() {
       <main className="workspace">
         {activeClassroom ? (
           <>
-            <header className="topbar">
+            <header className={`topbar ${basePlanEditModeActive ? 'base-plan-edit-active' : ''}`}>
               <div className="topbar-left">
-                <div
-                  ref={classroomPickerRef}
-                  className={`classroom-picker header-classroom-picker ${classroomMenuOpen ? 'open' : ''}`}
-                >
-                  <button
-                    className="classroom-picker-trigger"
-                    type="button"
-                    onClick={() => {
-                      setClassroomMenuOpen((current) => !current);
-                      setCreatePanelOpen(false);
-                    }}
+                <div className="classroom-selector-controls">
+                  <div
+                    ref={classroomPickerRef}
+                    className={`classroom-picker header-classroom-picker ${classroomMenuOpen ? 'open' : ''}`}
                   >
-                    <div>
-                      <strong>{classroomTitle(activeClassroom)}</strong>
-                      <span>{activeClassroom.students.length}명</span>
+                    <button
+                      className="classroom-picker-trigger"
+                      type="button"
+                      onClick={() => {
+                        setClassroomMenuOpen((current) => !current);
+                        setCreatePanelOpen(false);
+                      }}
+                    >
+                      <div>
+                        <strong>{classroomTitle(activeClassroom)}</strong>
+                        <span>{activeClassroom.students.length}명</span>
+                      </div>
+                      <span>{classroomMenuOpen ? '닫기' : '반 선택'}</span>
+                    </button>
+                    <div className="classroom-picker-menu">
+                      {data.classrooms.map((classroom) => (
+                        <button
+                          key={classroom.id}
+                          className={`classroom-card ${classroom.id === data.activeClassroomId ? 'active' : ''}`}
+                          type="button"
+                          onClick={() => handleSelectClassroom(classroom.id)}
+                        >
+                          <strong>{classroomTitle(classroom)}</strong>
+                          <span>{classroom.students.length}명</span>
+                        </button>
+                      ))}
                     </div>
-                    <span>{classroomMenuOpen ? '닫기' : '반 선택'}</span>
-                  </button>
-                  <div className="classroom-picker-menu">
-                    {data.classrooms.map((classroom) => (
-                      <button
-                        key={classroom.id}
-                        className={`classroom-card ${classroom.id === data.activeClassroomId ? 'active' : ''}`}
-                        type="button"
-                        onClick={() => handleSelectClassroom(classroom.id)}
-                      >
-                        <strong>{classroomTitle(classroom)}</strong>
-                        <span>{classroom.students.length}명</span>
-                      </button>
-                    ))}
                   </div>
+                  <ClassroomOverflowMenu
+                    isBasePlanEditMode={basePlanEditModeActive}
+                    onToggleBasePlanEditMode={handleToggleBasePlanEditMode}
+                  />
                 </div>
+                {basePlanEditModeActive ? <span className="mode-status-pill">기준 배치 편집 중</span> : null}
                 <span className="autosave-pill">자동저장 {formatTime(lastSavedAt)}</span>
               </div>
               <div className="topbar-actions">
