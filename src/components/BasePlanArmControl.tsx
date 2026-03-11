@@ -10,10 +10,10 @@ export function BasePlanArmControl({
   onToggle,
 }: BasePlanArmControlProps) {
   const helperText = disabled
-    ? '저장된 기준 배치가 없으면 사용할 수 없습니다.'
+    ? '저장된 기준안이 있어야 사용할 수 있습니다.'
     : armed
-      ? '기준안 적용 예정 · 다음 실행은 저장된 기준안을 그대로 적용합니다.'
-      : '끄면 기존 조건 반영 랜덤 배치를 사용합니다.';
+      ? '기준안 적용 예정 · 다음 자리 배정 시작은 저장된 기준안을 그대로 적용합니다.'
+      : '일반 랜덤 모드 · 다음 자리 배정 시작은 조건을 반영해 새로 배정합니다.';
 
   return (
     <div className="base-plan-arm-control">

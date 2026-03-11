@@ -395,6 +395,9 @@ export default function App() {
     !basePlanEditModeActive &&
     basePlanAvailable &&
     basePlanApplyArmedClassroomId === activeClassroom.id;
+  const seatingActionHelperText = basePlanApplyArmed
+    ? '기준안 적용 예정 · 저장된 기준안을 그대로 공개합니다.'
+    : '일반 모드 · 성별 조건과 금지 조합을 반영해 새로 랜덤 배정합니다.';
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
@@ -1377,7 +1380,7 @@ export default function App() {
                     </div>
 
                     <div className="inspector-section">
-                      <div className="mini-title">랜덤 배치</div>
+                      <div className="mini-title">자리 배정</div>
                       <div className="segment-control">
                         {Object.entries(GENDER_MODE_LABELS).map(([value, label]) => (
                           <button
@@ -1406,8 +1409,9 @@ export default function App() {
                             onToggle={handleToggleBasePlanApplyArmed}
                           />
                           <button className="primary-button" type="button" onClick={handleRandomize}>
-                            조건 반영 랜덤 배치
+                            자리 배정 시작
                           </button>
+                          <p className="helper-text">{seatingActionHelperText}</p>
                         </>
                       )}
                       {randomSummary ? (

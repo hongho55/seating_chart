@@ -23,10 +23,10 @@ export function BasePlanEditActionBar({
     <section className="base-plan-edit-bar print-hidden">
       <div className="base-plan-edit-bar-copy">
         <strong>기준 배치 편집</strong>
-        <span>핀을 유지한 채 다시 섞거나 전체를 다시 섞은 뒤 저장할 수 있습니다.</span>
+        <span>저장할 기준안을 직접 맞추거나 전체 랜덤, 미고정만 랜덤으로 정리한 뒤 저장할 수 있습니다.</span>
         {randomSummary ? (
           <span className="base-plan-edit-summary">
-            최근 랜덤 결과 · 충돌 {randomSummary.conflicts} · 성별 {randomSummary.genderMisses} · 미배치{' '}
+            최근 배치 결과 · 충돌 {randomSummary.conflicts} · 성별 {randomSummary.genderMisses} · 미배치{' '}
             {randomSummary.unplacedStudents}
           </span>
         ) : null}
