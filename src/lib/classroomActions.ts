@@ -1,4 +1,8 @@
-import { synchronizeClassroomBasePlan } from './basePlanState';
+import {
+  applyBasePlanToClassroom,
+  sanitizeBasePlanAssignments,
+  saveClassroomBasePlan,
+} from './basePlanState';
 import { createId } from './ids';
 import { cloneSeats, createPresetLayout } from './layouts';
 import {
@@ -21,7 +25,7 @@ function touchClassroom(classroom: Classroom): Classroom {
 }
 
 function touchClassroomLayout(classroom: Classroom): Classroom {
-  return touchClassroom(synchronizeClassroomBasePlan(classroom));
+  return touchClassroom(classroom);
 }
 
 export function applyClassroomPreset(
@@ -52,6 +56,7 @@ export function resetClassroomStudents(classroom: Classroom): Classroom {
     students: [],
     rules: [],
     seats: clearSeatAssignments(classroom.seats),
+    basePlan: sanitizeBasePlanAssignments(classroom.basePlan, []),
     snapshots: classroom.snapshots.map((snapshot) => ({
       ...snapshot,
       seats: clearSeatAssignments(snapshot.seats),
@@ -181,4 +186,12 @@ export function setClassroomSeats(classroom: Classroom, seats: Classroom['seats'
     ...classroom,
     seats: cloneSeats(seats),
   });
+}
+
+export function restoreBasePlanInClassroom(classroom: Classroom): Classroom {
+  return touchClassroomLayout(applyBasePlanToClassroom(classroom));
+}
+
+export function saveBasePlanInClassroom(classroom: Classroom): Classroom {
+  return touchClassroom(saveClassroomBasePlan(classroom));
 }

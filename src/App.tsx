@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import { createId } from './lib/ids';
 import {
@@ -21,7 +22,9 @@ import {
   deleteRuleFromClassroom,
   deleteStudentFromClassroom,
   resetClassroomStudents,
+  restoreBasePlanInClassroom,
   restoreSnapshotInClassroom,
+  saveBasePlanInClassroom,
   saveClassroomSnapshot,
   setClassroomSeats,
   swapStudentsInClassroom,
@@ -400,12 +403,37 @@ export default function App() {
     }));
   }
 
+  function closeBasePlanEditMode(options?: {
+    restoreBasePlan?: boolean;
+    saveBasePlan?: boolean;
+  }) {
+    if (activeClassroom && basePlanEditModeActive) {
+      if (options?.restoreBasePlan) {
+        updateActiveClassroom(restoreBasePlanInClassroom);
+      }
+
+      if (options?.saveBasePlan) {
+        updateActiveClassroom(saveBasePlanInClassroom);
+      }
+    }
+
+    setAppMode(createDefaultAppMode());
+    setSelectedStudentIds([]);
+    setRandomSummary(null);
+    setClassroomMenuOpen(false);
+    setCreatePanelOpen(false);
+  }
+
   function openBackupImportPicker() {
     backupFileInputRef.current?.click();
   }
 
   function handleCreateClassroom() {
     const classroom = createEmptyClassroom(newClassroom);
+
+    if (basePlanEditModeActive) {
+      updateActiveClassroom(restoreBasePlanInClassroom);
+    }
 
     setData((current) => ({
       ...current,
@@ -414,6 +442,8 @@ export default function App() {
     }));
     setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
+    setRandomSummary(null);
+    setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
   }
 
@@ -454,14 +484,15 @@ export default function App() {
   }
 
   function handleSelectClassroom(classroomId: string) {
+    if (basePlanEditModeActive) {
+      updateActiveClassroom(restoreBasePlanInClassroom);
+    }
+
     setData((current) => ({
       ...current,
       activeClassroomId: classroomId,
     }));
-    setAppMode(createDefaultAppMode());
-    setClassroomMenuOpen(false);
-    setSelectedStudentIds([]);
-    setRandomSummary(null);
+    closeBasePlanEditMode();
   }
 
   function handleToggleBasePlanEditMode() {
@@ -469,12 +500,14 @@ export default function App() {
       return;
     }
 
-    setAppMode((current) =>
-      isBasePlanEditMode(current, activeClassroom.id)
-        ? createDefaultAppMode()
-        : createBasePlanEditMode(activeClassroom.id),
-    );
+    if (basePlanEditModeActive) {
+      closeBasePlanEditMode({ restoreBasePlan: true });
+      return;
+    }
+
+    setAppMode(createBasePlanEditMode(activeClassroom.id));
     setSelectedStudentIds([]);
+    setRandomSummary(null);
     setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
   }
@@ -593,13 +626,9 @@ export default function App() {
     updateActiveClassroom((classroom) => deleteRuleFromClassroom(classroom, ruleId));
   }
 
-  function handleRandomize() {
-    if (!activeClassroom) {
-      return;
-    }
-
+  function applyRandomize(classroomToRandomize: Classroom) {
     startTransition(() => {
-      const result = randomizeSeats(activeClassroom);
+      const result = randomizeSeats(classroomToRandomize);
 
       updateActiveClassroom((classroom) => setClassroomSeats(classroom, result.seats));
       setRandomSummary({
@@ -609,6 +638,33 @@ export default function App() {
       });
     });
     setSelectedStudentIds([]);
+  }
+
+  function handleRandomize() {
+    if (!activeClassroom) {
+      return;
+    }
+
+    applyRandomize(activeClassroom);
+  }
+
+  function handleRandomizeAllSeats() {
+    if (!activeClassroom) {
+      return;
+    }
+
+    applyRandomize({
+      ...activeClassroom,
+      seats: activeClassroom.seats.map((seat) => ({ ...seat, fixed: false })),
+    });
+  }
+
+  function handleCancelBasePlanEdit() {
+    closeBasePlanEditMode({ restoreBasePlan: true });
+  }
+
+  function handleSaveBasePlan() {
+    closeBasePlanEditMode({ saveBasePlan: true });
   }
 
   function handleSaveSnapshot() {
@@ -952,9 +1008,11 @@ export default function App() {
                   </button>
                 </div>
                 <div className="button-row print-hidden">
-                  <button className="secondary-button" type="button" onClick={handleSaveSnapshot}>
-                    현재 배치 저장
-                  </button>
+                  {!basePlanEditModeActive ? (
+                    <button className="secondary-button" type="button" onClick={handleSaveSnapshot}>
+                      현재 배치 저장
+                    </button>
+                  ) : null}
                   <button className="secondary-button" type="button" onClick={() => handlePrint('teacher')}>
                     교사용 인쇄
                   </button>
@@ -964,6 +1022,16 @@ export default function App() {
                 </div>
               </div>
             </header>
+
+            {basePlanEditModeActive ? (
+              <BasePlanEditActionBar
+                randomSummary={randomSummary}
+                onCancel={handleCancelBasePlanEdit}
+                onRandomizeAll={handleRandomizeAllSeats}
+                onRandomizeUnfixed={handleRandomize}
+                onSave={handleSaveBasePlan}
+              />
+            ) : null}
 
             <section className="workspace-grid">
               <section className="canvas-section">
@@ -1221,9 +1289,15 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <button className="primary-button" type="button" onClick={handleRandomize}>
-                        조건 반영 랜덤 배치
-                      </button>
+                      {basePlanEditModeActive ? (
+                        <p className="helper-text">
+                          기준 배치 편집 중에는 상단 액션에서 `전체 랜덤` 또는 `미고정만 랜덤`을 사용합니다.
+                        </p>
+                      ) : (
+                        <button className="primary-button" type="button" onClick={handleRandomize}>
+                          조건 반영 랜덤 배치
+                        </button>
+                      )}
                       {randomSummary ? (
                         <div className="status-card">
                           <span>금지 조합 충돌: {randomSummary.conflicts}</span>
@@ -1396,7 +1470,11 @@ export default function App() {
                         </button>
                       ))}
                       {activeClassroom.snapshots.length === 0 ? (
-                        <p className="helper-text">현재 배치 저장 버튼으로 반별 저장본을 만들 수 있습니다.</p>
+                        <p className="helper-text">
+                          {basePlanEditModeActive
+                            ? '기준 배치 편집을 마친 뒤 일반 모드에서 저장본을 만들 수 있습니다.'
+                            : '현재 배치 저장 버튼으로 반별 저장본을 만들 수 있습니다.'}
+                        </p>
                       ) : null}
                     </div>
                   </div>
