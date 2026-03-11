@@ -5,9 +5,6 @@ import {
   CANVAS_WIDTH,
   CANVAS_PADDING_X,
   CANVAS_PADDING_Y,
-  cloneGroups,
-  cloneSeats,
-  createPresetLayout,
   getDefaultVariant,
   getVariantOptions,
   GROUP_OUTLINE_PADDING,
@@ -16,11 +13,18 @@ import {
 } from './lib/layouts';
 import { inferGenderFromText, randomizeSeats } from './lib/randomize';
 import {
-  clearSeatAssignments,
-  createClassroomSnapshot,
-  removeStudentFromClassroom,
-  restoreSnapshotToClassroom,
-} from './lib/classroomState';
+  addRuleToClassroom,
+  addStudentsToClassroom,
+  applyClassroomPreset,
+  canAddRuleToClassroom,
+  deleteRuleFromClassroom,
+  deleteStudentFromClassroom,
+  resetClassroomStudents,
+  restoreSnapshotInClassroom,
+  saveClassroomSnapshot,
+  swapStudentsInClassroom,
+  toggleSeatPinInClassroom,
+} from './lib/classroomActions';
 import {
   createBackupFile,
   createEmptyClassroom,
@@ -32,7 +36,6 @@ import type {
   AppData,
   Classroom,
   DeskVariant,
-  ConflictRule,
   GenderMode,
   Seat,
   SeatPreset,
@@ -461,25 +464,14 @@ export default function App() {
       return;
     }
 
-    const nextLayout = createPresetLayout({
-      preset: presetType,
-      rows: presetRows,
-      cols: presetCols,
-      variant: presetVariant,
-    });
-
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      seats: nextLayout.seats,
-      groups: nextLayout.groups,
-      layoutConfig: {
+    updateActiveClassroom((classroom) =>
+      applyClassroomPreset(classroom, {
         preset: presetType,
         rows: presetRows,
         cols: presetCols,
         variant: presetVariant,
-      },
-      updatedAt: new Date().toISOString(),
-    }));
+      }),
+    );
     setSelectedStudentIds([]);
     setRandomSummary(null);
   }
@@ -491,11 +483,7 @@ export default function App() {
       return;
     }
 
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      students: [...classroom.students, ...parsedStudents],
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => addStudentsToClassroom(classroom, parsedStudents));
     setBulkStudents('');
   }
 
@@ -512,27 +500,14 @@ export default function App() {
       return;
     }
 
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      students: [],
-      rules: [],
-      seats: clearSeatAssignments(classroom.seats),
-      snapshots: classroom.snapshots.map((snapshot) => ({
-        ...snapshot,
-        seats: clearSeatAssignments(snapshot.seats),
-      })),
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom(resetClassroomStudents);
     setSelectedStudentIds([]);
     setRuleDraft({ studentAId: '', studentBId: '' });
     setRandomSummary(null);
   }
 
   function handleDeleteStudent(studentId: string) {
-    updateActiveClassroom((classroom) => ({
-      ...removeStudentFromClassroom(classroom, studentId),
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => deleteStudentFromClassroom(classroom, studentId));
 
     if (selectedStudentIds.includes(studentId)) {
       setSelectedStudentIds((current) => current.filter((id) => id !== studentId));
@@ -544,34 +519,9 @@ export default function App() {
       return;
     }
 
-    updateActiveClassroom((classroom) => {
-      const seats = cloneSeats(classroom.seats);
-      const firstSeat = seats.find((seat) => seat.assignedStudentId === firstStudentId) ?? null;
-      const secondSeat = seats.find((seat) => seat.assignedStudentId === secondStudentId) ?? null;
-
-      if (!firstSeat && !secondSeat) {
-        return classroom;
-      }
-
-      const firstFixed = firstSeat?.fixed ?? false;
-      const secondFixed = secondSeat?.fixed ?? false;
-
-      if (firstSeat) {
-        firstSeat.assignedStudentId = secondStudentId;
-        firstSeat.fixed = secondSeat ? secondFixed : false;
-      }
-
-      if (secondSeat) {
-        secondSeat.assignedStudentId = firstStudentId;
-        secondSeat.fixed = firstSeat ? firstFixed : false;
-      }
-
-      return {
-        ...classroom,
-        seats,
-        updatedAt: new Date().toISOString(),
-      };
-    });
+    updateActiveClassroom((classroom) =>
+      swapStudentsInClassroom(classroom, firstStudentId, secondStudentId),
+    );
   }
 
   function handleStudentSelect(studentId: string) {
@@ -594,13 +544,7 @@ export default function App() {
   }
 
   function handleToggleSeatPin(seatId: string) {
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      seats: classroom.seats.map((seat) =>
-        seat.id === seatId && seat.assignedStudentId ? { ...seat, fixed: !seat.fixed } : seat,
-      ),
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => toggleSeatPinInClassroom(classroom, seatId));
   }
 
   function handleAddRule() {
@@ -608,44 +552,18 @@ export default function App() {
       return;
     }
 
-    if (
-      !ruleDraft.studentAId ||
-      !ruleDraft.studentBId ||
-      ruleDraft.studentAId === ruleDraft.studentBId
-    ) {
+    if (!canAddRuleToClassroom(activeClassroom, ruleDraft.studentAId, ruleDraft.studentBId)) {
       return;
     }
 
-    const exists = activeClassroom.rules.some(
-      (rule) =>
-        (rule.studentAId === ruleDraft.studentAId && rule.studentBId === ruleDraft.studentBId) ||
-        (rule.studentAId === ruleDraft.studentBId && rule.studentBId === ruleDraft.studentAId),
+    updateActiveClassroom((classroom) =>
+      addRuleToClassroom(classroom, ruleDraft.studentAId, ruleDraft.studentBId),
     );
-
-    if (exists) {
-      return;
-    }
-
-    const nextRule: ConflictRule = {
-      id: createId('rule'),
-      studentAId: ruleDraft.studentAId,
-      studentBId: ruleDraft.studentBId,
-    };
-
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      rules: [...classroom.rules, nextRule],
-      updatedAt: new Date().toISOString(),
-    }));
     setRuleDraft({ studentAId: '', studentBId: '' });
   }
 
   function handleDeleteRule(ruleId: string) {
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      rules: classroom.rules.filter((rule) => rule.id !== ruleId),
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => deleteRuleFromClassroom(classroom, ruleId));
   }
 
   function handleRandomize() {
@@ -684,14 +602,7 @@ export default function App() {
       return;
     }
 
-    updateActiveClassroom((classroom) => ({
-      ...classroom,
-      snapshots: [
-        createClassroomSnapshot(name, classroom, classroom.lastViewMode),
-        ...classroom.snapshots,
-      ],
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => saveClassroomSnapshot(classroom, name));
   }
 
   function handleRestoreSnapshot(snapshotId: string) {
@@ -699,16 +610,13 @@ export default function App() {
       return;
     }
 
-    const snapshot = activeClassroom.snapshots.find((item) => item.id === snapshotId);
+    const nextClassroom = restoreSnapshotInClassroom(activeClassroom, snapshotId);
 
-    if (!snapshot) {
+    if (nextClassroom === activeClassroom) {
       return;
     }
 
-    updateActiveClassroom((classroom) => ({
-      ...restoreSnapshotToClassroom(classroom, snapshot),
-      updatedAt: new Date().toISOString(),
-    }));
+    updateActiveClassroom((classroom) => restoreSnapshotInClassroom(classroom, snapshotId));
   }
 
   function handleDownloadBackup() {
