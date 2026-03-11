@@ -22,6 +22,7 @@ import {
   resetClassroomStudents,
   restoreSnapshotInClassroom,
   saveClassroomSnapshot,
+  setClassroomSeats,
   swapStudentsInClassroom,
   toggleSeatPinInClassroom,
 } from './lib/classroomActions';
@@ -574,11 +575,7 @@ export default function App() {
     startTransition(() => {
       const result = randomizeSeats(activeClassroom);
 
-      updateActiveClassroom((classroom) => ({
-        ...classroom,
-        seats: result.seats,
-        updatedAt: new Date().toISOString(),
-      }));
+      updateActiveClassroom((classroom) => setClassroomSeats(classroom, result.seats));
       setRandomSummary({
         conflicts: result.conflicts,
         genderMisses: result.genderMisses,

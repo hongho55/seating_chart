@@ -1,27 +1,8 @@
+import { sanitizeBasePlanAssignments } from './basePlanState';
 import { createId } from './ids';
 import { cloneGroups, cloneSeats } from './layouts';
-import type { Classroom, LayoutSnapshot, Seat, ViewMode } from '../types';
-
-export function sanitizeSeatAssignments(
-  seats: Seat[],
-  validStudentIds: Iterable<string>,
-): Seat[] {
-  const studentIds = new Set(validStudentIds);
-
-  return seats.map((seat) =>
-    seat.assignedStudentId && !studentIds.has(seat.assignedStudentId)
-      ? { ...seat, assignedStudentId: null, fixed: false }
-      : { ...seat },
-  );
-}
-
-export function clearSeatAssignments(seats: Seat[]): Seat[] {
-  return seats.map((seat) => ({
-    ...seat,
-    assignedStudentId: null,
-    fixed: false,
-  }));
-}
+import { sanitizeSeatAssignments } from './seatAssignments';
+import type { Classroom, LayoutSnapshot, ViewMode } from '../types';
 
 export function sanitizeSnapshotAssignments(
   snapshot: LayoutSnapshot,
@@ -41,6 +22,7 @@ export function sanitizeClassroomStudentAssignments(classroom: Classroom): Class
   return {
     ...classroom,
     seats: sanitizeSeatAssignments(classroom.seats, studentIds),
+    basePlan: sanitizeBasePlanAssignments(classroom.basePlan, studentIds),
     snapshots: classroom.snapshots.map((snapshot) =>
       sanitizeSnapshotAssignments(snapshot, studentIds),
     ),

@@ -1,7 +1,9 @@
+import { createBasePlan } from './basePlanState';
 import { sanitizeClassroomStudentAssignments } from './classroomState';
 import { cloneGroups, cloneSeats, getDefaultVariant } from './layouts';
 import type {
   AppData,
+  BasePlan,
   Classroom,
   ConflictRule,
   DeskVariant,
@@ -175,8 +177,12 @@ function parseStudent(value: unknown, index: number): ParseResult<Student> {
 }
 
 function parseSeat(value: unknown, index: number): ParseResult<Seat> {
+  return parseSeatAtPath(value, `classrooms[].seats[${index}]`);
+}
+
+function parseSeatAtPath(value: unknown, label: string): ParseResult<Seat> {
   if (!isRecord(value)) {
-    return { ok: false, error: `classrooms[].seats[${index}] 항목이 객체가 아닙니다.` };
+    return { ok: false, error: `${label} 항목이 객체가 아닙니다.` };
   }
 
   if (
@@ -189,7 +195,7 @@ function parseSeat(value: unknown, index: number): ParseResult<Seat> {
     (value.assignedStudentId !== null && !isString(value.assignedStudentId)) ||
     typeof value.fixed !== 'boolean'
   ) {
-    return { ok: false, error: `classrooms[].seats[${index}] 좌석 정보 형식이 잘못되었습니다.` };
+    return { ok: false, error: `${label} 좌석 정보 형식이 잘못되었습니다.` };
   }
 
   return {
@@ -208,8 +214,12 @@ function parseSeat(value: unknown, index: number): ParseResult<Seat> {
 }
 
 function parseSeatGroup(value: unknown, index: number): ParseResult<SeatGroup> {
+  return parseSeatGroupAtPath(value, `classrooms[].groups[${index}]`);
+}
+
+function parseSeatGroupAtPath(value: unknown, label: string): ParseResult<SeatGroup> {
   if (!isRecord(value)) {
-    return { ok: false, error: `classrooms[].groups[${index}] 항목이 객체가 아닙니다.` };
+    return { ok: false, error: `${label} 항목이 객체가 아닙니다.` };
   }
 
   if (
@@ -219,13 +229,13 @@ function parseSeatGroup(value: unknown, index: number): ParseResult<SeatGroup> {
     !isOneOf(value.variant, VALID_VARIANTS) ||
     !isString(value.color)
   ) {
-    return { ok: false, error: `classrooms[].groups[${index}] 모둠 정보 형식이 잘못되었습니다.` };
+    return { ok: false, error: `${label} 모둠 정보 형식이 잘못되었습니다.` };
   }
 
-  const seatIds = parseArray(value.seatIds, `classrooms[].groups[${index}].seatIds`, (entry) =>
+  const seatIds = parseArray(value.seatIds, `${label}.seatIds`, (entry) =>
     isString(entry)
       ? { ok: true, value: entry }
-      : { ok: false, error: `classrooms[].groups[${index}].seatIds에는 문자열만 들어갈 수 있습니다.` },
+      : { ok: false, error: `${label}.seatIds에는 문자열만 들어갈 수 있습니다.` },
   );
 
   if (!seatIds.ok) {
@@ -350,6 +360,58 @@ function parseSnapshot(value: unknown, index: number): ParseResult<LayoutSnapsho
   };
 }
 
+function parseBasePlan(
+  value: unknown,
+  fallback: Pick<Classroom, 'seats' | 'groups' | 'layoutConfig'>,
+  label: string,
+): ParseResult<BasePlan> {
+  if (value == null) {
+    return {
+      ok: true,
+      value: createBasePlan(fallback),
+    };
+  }
+
+  if (!isRecord(value)) {
+    return { ok: false, error: `${label} 항목이 객체가 아닙니다.` };
+  }
+
+  const seats = parseArray(value.seats, `${label}.seats`, (entry, seatIndex) =>
+    parseSeatAtPath(entry, `${label}.seats[${seatIndex}]`),
+  );
+
+  if (!seats.ok) {
+    return seats;
+  }
+
+  const groups = parseArray(value.groups, `${label}.groups`, (entry, groupIndex) =>
+    parseSeatGroupAtPath(entry, `${label}.groups[${groupIndex}]`),
+  );
+
+  if (!groups.ok) {
+    return groups;
+  }
+
+  const layoutConfig = parseLayoutConfig(
+    value.layoutConfig,
+    { seats: cloneSeats(seats.value), groups: cloneGroups(groups.value) },
+    `${label}.layoutConfig`,
+  );
+
+  if (!layoutConfig.ok) {
+    return layoutConfig;
+  }
+
+  return {
+    ok: true,
+    value: {
+      seats: cloneSeats(seats.value),
+      groups: cloneGroups(groups.value),
+      layoutConfig: { ...layoutConfig.value },
+    },
+  };
+}
+
 function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   if (!isRecord(value)) {
     return { ok: false, error: `classrooms[${index}] 항목이 객체가 아닙니다.` };
@@ -409,6 +471,20 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
     return layoutConfig;
   }
 
+  const basePlan = parseBasePlan(
+    value.basePlan,
+    {
+      seats: cloneSeats(seats.value),
+      groups: cloneGroups(groups.value),
+      layoutConfig: { ...layoutConfig.value },
+    },
+    `classrooms[${index}].basePlan`,
+  );
+
+  if (!basePlan.ok) {
+    return basePlan;
+  }
+
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
   const randomSettings = value.randomSettings == null ? { genderMode: 'random' } : value.randomSettings;
@@ -436,6 +512,7 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
       seats: cloneSeats(seats.value),
       groups: cloneGroups(groups.value),
       layoutConfig: { ...layoutConfig.value },
+      basePlan: basePlan.value,
       rules: rules.value,
       snapshots: snapshots.value,
       boardLabel,

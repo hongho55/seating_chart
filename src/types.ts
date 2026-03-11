@@ -68,6 +68,12 @@ export interface LayoutSnapshot {
   viewMode: ViewMode;
 }
 
+export interface BasePlan {
+  seats: Seat[];
+  groups: SeatGroup[];
+  layoutConfig: LayoutPresetConfig;
+}
+
 export interface Classroom {
   id: string;
   grade: string;
@@ -77,6 +83,7 @@ export interface Classroom {
   seats: Seat[];
   groups: SeatGroup[];
   layoutConfig: LayoutPresetConfig;
+  basePlan: BasePlan;
   rules: ConflictRule[];
   snapshots: LayoutSnapshot[];
   boardLabel: string;

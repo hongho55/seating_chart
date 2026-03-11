@@ -1,4 +1,5 @@
 import { normalizeAppData } from './backupParser';
+import { createBasePlan } from './basePlanState';
 import { createId } from './ids';
 import { createPresetLayout } from './layouts';
 import type { AppData, Classroom } from '../types';
@@ -20,6 +21,12 @@ export function createEmptyClassroom(input?: {
     cols: 2,
     variant: 'group6-2x3',
   });
+  const layoutConfig = {
+    preset: 'group6',
+    rows: 2,
+    cols: 2,
+    variant: 'group6-2x3',
+  } as const;
 
   return {
     id: createId('class'),
@@ -29,12 +36,12 @@ export function createEmptyClassroom(input?: {
     students: [],
     seats: layout.seats,
     groups: layout.groups,
-    layoutConfig: {
-      preset: 'group6',
-      rows: 2,
-      cols: 2,
-      variant: 'group6-2x3',
-    },
+    layoutConfig,
+    basePlan: createBasePlan({
+      seats: layout.seats,
+      groups: layout.groups,
+      layoutConfig,
+    }),
     rules: [],
     snapshots: [],
     boardLabel: '칠판',

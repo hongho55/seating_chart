@@ -1,11 +1,12 @@
+import { synchronizeClassroomBasePlan } from './basePlanState';
 import { createId } from './ids';
 import { cloneSeats, createPresetLayout } from './layouts';
 import {
-  clearSeatAssignments,
   createClassroomSnapshot,
   removeStudentFromClassroom,
   restoreSnapshotToClassroom,
 } from './classroomState';
+import { clearSeatAssignments } from './seatAssignments';
 import type { Classroom, LayoutPresetConfig, Student } from '../types';
 
 function now(): string {
@@ -19,19 +20,22 @@ function touchClassroom(classroom: Classroom): Classroom {
   };
 }
 
+function touchClassroomLayout(classroom: Classroom): Classroom {
+  return touchClassroom(synchronizeClassroomBasePlan(classroom));
+}
+
 export function applyClassroomPreset(
   classroom: Classroom,
   layoutConfig: LayoutPresetConfig,
 ): Classroom {
   const nextLayout = createPresetLayout(layoutConfig);
 
-  return {
+  return touchClassroomLayout({
     ...classroom,
     seats: nextLayout.seats,
     groups: nextLayout.groups,
     layoutConfig: { ...layoutConfig },
-    updatedAt: now(),
-  };
+  });
 }
 
 export function addStudentsToClassroom(classroom: Classroom, students: Student[]): Classroom {
@@ -43,7 +47,7 @@ export function addStudentsToClassroom(classroom: Classroom, students: Student[]
 }
 
 export function resetClassroomStudents(classroom: Classroom): Classroom {
-  return {
+  return touchClassroomLayout({
     ...classroom,
     students: [],
     rules: [],
@@ -52,8 +56,7 @@ export function resetClassroomStudents(classroom: Classroom): Classroom {
       ...snapshot,
       seats: clearSeatAssignments(snapshot.seats),
     })),
-    updatedAt: now(),
-  };
+  });
 }
 
 export function deleteStudentFromClassroom(classroom: Classroom, studentId: string): Classroom {
@@ -90,21 +93,19 @@ export function swapStudentsInClassroom(
     secondSeat.fixed = firstSeat ? firstFixed : false;
   }
 
-  return {
+  return touchClassroomLayout({
     ...classroom,
     seats,
-    updatedAt: now(),
-  };
+  });
 }
 
 export function toggleSeatPinInClassroom(classroom: Classroom, seatId: string): Classroom {
-  return {
+  return touchClassroomLayout({
     ...classroom,
     seats: classroom.seats.map((seat) =>
       seat.id === seatId && seat.assignedStudentId ? { ...seat, fixed: !seat.fixed } : seat,
     ),
-    updatedAt: now(),
-  };
+  });
 }
 
 export function addRuleToClassroom(
@@ -172,8 +173,12 @@ export function restoreSnapshotInClassroom(classroom: Classroom, snapshotId: str
     return classroom;
   }
 
-  return {
-    ...restoreSnapshotToClassroom(classroom, snapshot),
-    updatedAt: now(),
-  };
+  return touchClassroomLayout(restoreSnapshotToClassroom(classroom, snapshot));
+}
+
+export function setClassroomSeats(classroom: Classroom, seats: Classroom['seats']): Classroom {
+  return touchClassroomLayout({
+    ...classroom,
+    seats: cloneSeats(seats),
+  });
 }
