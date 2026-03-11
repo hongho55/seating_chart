@@ -163,6 +163,60 @@ function getGroupLabel(preset: SeatPreset, index: number): string {
   return `모둠 ${index}`;
 }
 
+function getMinimumGroupGapX(preset: SeatPreset): number {
+  if (preset === 'single') {
+    return 16;
+  }
+
+  if (preset === 'pair') {
+    return 28;
+  }
+
+  if (preset === 'group4') {
+    return 38;
+  }
+
+  return GROUP_GAP_X;
+}
+
+function getVisibleBounds(
+  seats: Seat[],
+  groups: SeatGroup[],
+): { minX: number; maxX: number; minY: number; maxY: number } | null {
+  if (seats.length === 0) {
+    return null;
+  }
+
+  let minX = Math.min(...seats.map((seat) => seat.x));
+  let maxX = Math.max(...seats.map((seat) => seat.x + SEAT_CARD_WIDTH));
+  let minY = Math.min(...seats.map((seat) => seat.y));
+  let maxY = Math.max(...seats.map((seat) => seat.y + SEAT_CARD_HEIGHT));
+
+  groups.forEach((group) => {
+    const groupSeats = seats.filter((seat) => group.seatIds.includes(seat.id));
+
+    if (groupSeats.length === 0) {
+      return;
+    }
+
+    minX = Math.min(minX, Math.min(...groupSeats.map((seat) => seat.x)) - GROUP_OUTLINE_PADDING);
+    maxX = Math.max(
+      maxX,
+      Math.max(...groupSeats.map((seat) => seat.x + SEAT_CARD_WIDTH)) + GROUP_OUTLINE_PADDING,
+    );
+    minY = Math.min(
+      minY,
+      Math.min(...groupSeats.map((seat) => seat.y)) - GROUP_OUTLINE_PADDING - 12,
+    );
+    maxY = Math.max(
+      maxY,
+      Math.max(...groupSeats.map((seat) => seat.y + SEAT_CARD_HEIGHT)) + GROUP_OUTLINE_PADDING,
+    );
+  });
+
+  return { minX, maxX, minY, maxY };
+}
+
 export function createPresetLayout(config: LayoutPresetConfig): { seats: Seat[]; groups: SeatGroup[] } {
   const safeRows = Math.max(1, config.rows);
   const safeCols = Math.max(1, config.cols);
@@ -174,7 +228,7 @@ export function createPresetLayout(config: LayoutPresetConfig): { seats: Seat[];
   const groupHeight = Math.max(...offsets.map((offset) => offset.y)) + SEAT_CARD_HEIGHT;
   const availableInnerWidth =
     CANVAS_WIDTH - CANVAS_PADDING_X * 2 - GROUP_OUTLINE_PADDING * 2;
-  const minimumGroupGapX = GROUP_OUTLINE_PADDING * 2 + 4;
+  const minimumGroupGapX = getMinimumGroupGapX(config.preset);
   const compressedGapX =
     safeCols > 1
       ? Math.floor((availableInnerWidth - safeCols * groupWidth) / (safeCols - 1))
@@ -226,7 +280,28 @@ export function createPresetLayout(config: LayoutPresetConfig): { seats: Seat[];
     }
   }
 
-  return { seats, groups };
+  const bounds = getVisibleBounds(seats, groups);
+
+  if (!bounds) {
+    return { seats, groups };
+  }
+
+  const visibleWidth = bounds.maxX - bounds.minX;
+  const visibleHeight = bounds.maxY - bounds.minY;
+  const targetCanvasWidth = Math.max(CANVAS_WIDTH, visibleWidth + CANVAS_PADDING_X * 2);
+  const targetLeft = Math.round((targetCanvasWidth - visibleWidth) / 2);
+  const targetTop = CANVAS_PADDING_Y;
+  const shiftX = targetLeft - bounds.minX;
+  const shiftY = targetTop - bounds.minY;
+
+  return {
+    seats: seats.map((seat) => ({
+      ...seat,
+      x: seat.x + shiftX,
+      y: seat.y + shiftY,
+    })),
+    groups,
+  };
 }
 
 export function cloneSeats(seats: Seat[]): Seat[] {
