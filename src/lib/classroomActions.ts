@@ -1,5 +1,6 @@
 import {
   applyBasePlanToClassroom,
+  applyLayoutToClassroom,
   sanitizeBasePlanAssignments,
   saveClassroomBasePlan,
 } from './basePlanState';
@@ -11,7 +12,7 @@ import {
   restoreSnapshotToClassroom,
 } from './classroomState';
 import { clearSeatAssignments } from './seatAssignments';
-import type { Classroom, LayoutPresetConfig, Student } from '../types';
+import type { BasePlan, Classroom, LayoutPresetConfig, Student } from '../types';
 
 function now(): string {
   return new Date().toISOString();
@@ -204,4 +205,30 @@ export function restoreBasePlanInClassroom(classroom: Classroom): Classroom {
 
 export function saveBasePlanInClassroom(classroom: Classroom): Classroom {
   return touchClassroom(saveClassroomBasePlan(classroom));
+}
+
+export function exitBasePlanEditInClassroom(
+  classroom: Classroom,
+  options?: {
+    saveBasePlan?: boolean;
+    restoreLiveLayout?: BasePlan | null;
+  },
+): Classroom {
+  let nextClassroom = classroom;
+  let hasChanges = false;
+
+  if (options?.saveBasePlan) {
+    nextClassroom = saveClassroomBasePlan(nextClassroom);
+    hasChanges = true;
+  }
+
+  if (options?.restoreLiveLayout) {
+    nextClassroom = applyLayoutToClassroom(nextClassroom, options.restoreLiveLayout);
+    hasChanges = true;
+  } else if (!options?.saveBasePlan) {
+    nextClassroom = applyBasePlanToClassroom(nextClassroom);
+    hasChanges = true;
+  }
+
+  return hasChanges ? touchClassroom(nextClassroom) : classroom;
 }

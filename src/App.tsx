@@ -1,7 +1,11 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
-import { applyBasePlanToClassroom } from './lib/basePlanState';
+import {
+  applyBasePlanToClassroom,
+  applyLayoutToClassroom,
+  createBasePlan,
+} from './lib/basePlanState';
 import { createId } from './lib/ids';
 import {
   CANVAS_HEIGHT,
@@ -22,10 +26,10 @@ import {
   canAddRuleToClassroom,
   deleteRuleFromClassroom,
   deleteStudentFromClassroom,
+  exitBasePlanEditInClassroom,
   resetClassroomStudents,
   restoreBasePlanInClassroom,
   restoreSnapshotInClassroom,
-  saveBasePlanInClassroom,
   saveClassroomSnapshot,
   setSeatsFromBasePlanInClassroom,
   setClassroomSeats,
@@ -46,6 +50,7 @@ import {
 } from './lib/storage';
 import type {
   AppData,
+  BasePlan,
   Classroom,
   DeskVariant,
   GenderMode,
@@ -74,6 +79,28 @@ const PRINT_SAFETY_SCALE = 0.96;
 const SEAT_PIN_OVERHANG = 12;
 
 type InspectorTab = 'layout' | 'students' | 'rules' | 'saved';
+type BasePlanEditSession = {
+  classroomId: string;
+  liveLayout: BasePlan;
+};
+
+function createPersistedAppData(
+  data: AppData,
+  basePlanEditSession: BasePlanEditSession | null,
+): AppData {
+  if (!basePlanEditSession) {
+    return data;
+  }
+
+  return {
+    ...data,
+    classrooms: data.classrooms.map((classroom) =>
+      classroom.id === basePlanEditSession.classroomId
+        ? applyLayoutToClassroom(classroom, basePlanEditSession.liveLayout)
+        : classroom,
+    ),
+  };
+}
 
 function formatTime(isoString: string | null): string {
   if (!isoString) {
@@ -306,6 +333,7 @@ export default function App() {
   } | null>(null);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
   const [appMode, setAppMode] = useState(() => createDefaultAppMode());
+  const [basePlanEditSession, setBasePlanEditSession] = useState<BasePlanEditSession | null>(null);
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [boardScale, setBoardScale] = useState(1);
@@ -317,14 +345,14 @@ export default function App() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      saveAppData(data);
+      saveAppData(createPersistedAppData(data, basePlanEditSession));
       setLastSavedAt(new Date().toISOString());
     }, 500);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [data]);
+  }, [data, basePlanEditSession]);
 
   useEffect(() => {
     return () => {
@@ -348,6 +376,10 @@ export default function App() {
 
   const activeClassroom = data.classrooms.find((classroom) => classroom.id === data.activeClassroomId) ?? null;
   const basePlanEditModeActive = isBasePlanEditMode(appMode, activeClassroom?.id ?? null);
+  const activeBasePlanEditSession =
+    activeClassroom && basePlanEditSession?.classroomId === activeClassroom.id
+      ? basePlanEditSession
+      : null;
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const layoutBounds = activeClassroom ? getVisibleLayoutBounds(activeClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
@@ -405,20 +437,17 @@ export default function App() {
     }));
   }
 
-  function closeBasePlanEditMode(options?: {
-    restoreBasePlan?: boolean;
-    saveBasePlan?: boolean;
-  }) {
+  function closeBasePlanEditMode(options?: { saveBasePlan?: boolean }) {
     if (activeClassroom && basePlanEditModeActive) {
-      if (options?.restoreBasePlan) {
-        updateActiveClassroom(restoreBasePlanInClassroom);
-      }
-
-      if (options?.saveBasePlan) {
-        updateActiveClassroom(saveBasePlanInClassroom);
-      }
+      updateActiveClassroom((classroom) =>
+        exitBasePlanEditInClassroom(classroom, {
+          saveBasePlan: options?.saveBasePlan,
+          restoreLiveLayout: activeBasePlanEditSession?.liveLayout ?? null,
+        }),
+      );
     }
 
+    setBasePlanEditSession(null);
     setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
     setRandomSummary(null);
@@ -434,7 +463,7 @@ export default function App() {
     const classroom = createEmptyClassroom(newClassroom);
 
     if (basePlanEditModeActive) {
-      updateActiveClassroom(restoreBasePlanInClassroom);
+      closeBasePlanEditMode();
     }
 
     setData((current) => ({
@@ -480,6 +509,7 @@ export default function App() {
     setSelectedStudentIds([]);
     setRandomSummary(null);
     setRuleDraft({ studentAId: '', studentBId: '' });
+    setBasePlanEditSession(null);
     setAppMode(createDefaultAppMode());
     setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
@@ -487,14 +517,13 @@ export default function App() {
 
   function handleSelectClassroom(classroomId: string) {
     if (basePlanEditModeActive) {
-      updateActiveClassroom(restoreBasePlanInClassroom);
+      closeBasePlanEditMode();
     }
 
     setData((current) => ({
       ...current,
       activeClassroomId: classroomId,
     }));
-    closeBasePlanEditMode();
   }
 
   function handleToggleBasePlanEditMode() {
@@ -503,10 +532,15 @@ export default function App() {
     }
 
     if (basePlanEditModeActive) {
-      closeBasePlanEditMode({ restoreBasePlan: true });
+      closeBasePlanEditMode();
       return;
     }
 
+    setBasePlanEditSession({
+      classroomId: activeClassroom.id,
+      liveLayout: createBasePlan(activeClassroom),
+    });
+    updateActiveClassroom(restoreBasePlanInClassroom);
     setAppMode(createBasePlanEditMode(activeClassroom.id));
     setSelectedStudentIds([]);
     setRandomSummary(null);
@@ -673,7 +707,7 @@ export default function App() {
   }
 
   function handleCancelBasePlanEdit() {
-    closeBasePlanEditMode({ restoreBasePlan: true });
+    closeBasePlanEditMode();
   }
 
   function handleSaveBasePlan() {
@@ -712,7 +746,10 @@ export default function App() {
   }
 
   function handleDownloadBackup() {
-    downloadTextFile(createBackupFilename(), createBackupFile(data));
+    downloadTextFile(
+      createBackupFilename(),
+      createBackupFile(createPersistedAppData(data, basePlanEditSession)),
+    );
   }
 
   function handleBackupFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -748,6 +785,7 @@ export default function App() {
       setBulkStudents('');
       setRuleDraft({ studentAId: '', studentBId: '' });
       setRandomSummary(null);
+      setBasePlanEditSession(null);
       setAppMode(createDefaultAppMode());
       setClassroomMenuOpen(false);
       setCreatePanelOpen(false);
