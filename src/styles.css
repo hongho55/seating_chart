@@ -130,9 +130,10 @@ button {
 .classroom-selector-controls {
   display: flex;
   align-items: stretch;
-  flex: 1 1 auto;
+  flex: 0 1 clamp(320px, 36vw, 420px);
   gap: 8px;
   min-width: 0;
+  width: min(100%, 420px);
 }
 
 .classroom-picker-trigger {
@@ -152,7 +153,7 @@ button {
 .classroom-picker-trigger > div {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -417,9 +418,13 @@ textarea {
 .mode-button,
 .ghost-button,
 .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   border: 0;
   padding: 11px 16px;
+  text-align: center;
   transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
 }
 
@@ -476,6 +481,7 @@ textarea {
 .segment-control {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
 }
 
 .segment-control .mode-button {
@@ -631,9 +637,9 @@ textarea {
 }
 
 .header-classroom-picker {
-  flex: 1 1 320px;
+  flex: 1 1 auto;
   width: auto;
-  min-width: min(280px, 100%);
+  min-width: 0;
 }
 
 .topbar-create-wrap {
@@ -996,6 +1002,11 @@ textarea {
   .topbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .classroom-selector-controls {
+    flex: 1 1 auto;
+    width: 100%;
   }
 
   .topbar-left,
