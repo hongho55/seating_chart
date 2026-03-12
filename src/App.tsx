@@ -1100,10 +1100,20 @@ export default function App() {
     options?: {
       animateResult?: boolean;
       applyRandomizedSeats?: (classroom: Classroom, seats: Classroom['seats']) => Classroom;
+      genderMode?: GenderMode;
     },
   ) {
     startTransition(() => {
-      const result = randomizeSeats(classroomToRandomize);
+      const classroomForRandomize = options?.genderMode
+        ? {
+            ...classroomToRandomize,
+            randomSettings: {
+              ...classroomToRandomize.randomSettings,
+              genderMode: options.genderMode,
+            },
+          }
+        : classroomToRandomize;
+      const result = randomizeSeats(classroomForRandomize);
       const randomizeSummary: RandomSummary = {
         conflicts: result.conflicts,
         genderMisses: result.genderMisses,
@@ -1165,6 +1175,14 @@ export default function App() {
       ...activeClassroom,
       seats: activeClassroom.seats.map((seat) => ({ ...seat, fixed: false })),
     });
+  }
+
+  function handleRandomizeMixedSeats() {
+    if (!activeClassroom) {
+      return;
+    }
+
+    applyRandomize(activeClassroom, { genderMode: 'mixed' });
   }
 
   function handleCancelBasePlanEdit() {
@@ -1555,6 +1573,7 @@ export default function App() {
                 randomSummary={randomSummary}
                 onCancel={handleCancelBasePlanEdit}
                 onRandomizeAll={handleRandomizeAllSeats}
+                onRandomizeMixed={handleRandomizeMixedSeats}
                 onRandomizeUnfixed={handleRandomize}
                 onSave={handleSaveBasePlan}
               />
@@ -1817,7 +1836,7 @@ export default function App() {
                       </div>
                       {basePlanEditModeActive ? (
                         <p className="helper-text">
-                          기준 배치 편집 중에는 상단 액션에서 `전체 랜덤` 또는 `미고정만 랜덤`을 사용합니다.
+                          기준 배치 편집 중에는 상단 액션에서 `전체 랜덤`, `이성 우선 랜덤`, `미고정만 랜덤`을 사용합니다.
                         </p>
                       ) : (
                         <>
