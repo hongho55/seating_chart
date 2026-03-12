@@ -84,6 +84,7 @@ export interface Classroom {
   groups: SeatGroup[];
   layoutConfig: LayoutPresetConfig;
   basePlan: BasePlan;
+  hasSavedBasePlan: boolean;
   rules: ConflictRule[];
   snapshots: LayoutSnapshot[];
   boardLabel: string;

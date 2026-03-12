@@ -1,5 +1,5 @@
 import { normalizeAppData } from './backupParser';
-import { createBasePlan } from './basePlanState';
+import { createEmptyBasePlan } from './basePlanState';
 import { createId } from './ids';
 import { createPresetLayout } from './layouts';
 import type { AppData, Classroom } from '../types';
@@ -37,11 +37,12 @@ export function createEmptyClassroom(input?: {
     seats: layout.seats,
     groups: layout.groups,
     layoutConfig,
-    basePlan: createBasePlan({
+    basePlan: createEmptyBasePlan({
       seats: layout.seats,
       groups: layout.groups,
       layoutConfig,
     }),
+    hasSavedBasePlan: false,
     rules: [],
     snapshots: [],
     boardLabel: '칠판',

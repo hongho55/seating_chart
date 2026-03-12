@@ -1,4 +1,4 @@
-import { createBasePlan } from './basePlanState';
+import { createEmptyBasePlan } from './basePlanState';
 import { sanitizeClassroomStudentAssignments } from './classroomState';
 import { cloneGroups, cloneSeats, getDefaultVariant } from './layouts';
 import type {
@@ -107,6 +107,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -368,7 +372,7 @@ function parseBasePlan(
   if (value == null) {
     return {
       ok: true,
-      value: createBasePlan(fallback),
+      value: createEmptyBasePlan(fallback),
     };
   }
 
@@ -488,6 +492,7 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
   const randomSettings = value.randomSettings == null ? { genderMode: 'random' } : value.randomSettings;
+  const hasSavedBasePlan = isBoolean(value.hasSavedBasePlan) ? value.hasSavedBasePlan : false;
 
   if (!isString(boardLabel)) {
     return { ok: false, error: `classrooms[${index}].boardLabel은 문자열이어야 합니다.` };
@@ -512,7 +517,8 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
       seats: cloneSeats(seats.value),
       groups: cloneGroups(groups.value),
       layoutConfig: { ...layoutConfig.value },
-      basePlan: basePlan.value,
+      basePlan: hasSavedBasePlan ? basePlan.value : createEmptyBasePlan(basePlan.value),
+      hasSavedBasePlan,
       rules: rules.value,
       snapshots: snapshots.value,
       boardLabel,

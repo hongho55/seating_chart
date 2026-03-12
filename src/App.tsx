@@ -4,6 +4,7 @@ import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import {
   applyLayoutToClassroom,
   createBasePlan,
+  hasUsableBasePlan,
 } from './lib/basePlanState';
 import {
   BASE_PLAN_REVEAL_STEP_MS,
@@ -45,9 +46,6 @@ import {
   createDefaultAppMode,
   isBasePlanEditMode,
 } from './lib/appMode';
-import {
-  hasAssignedSeatAssignments,
-} from './lib/seatAssignments';
 import {
   createBackupFile,
   createEmptyClassroom,
@@ -568,9 +566,7 @@ export default function App() {
     activeClassroom && basePlanEditSession?.classroomId === activeClassroom.id
       ? basePlanEditSession
       : null;
-  const basePlanAvailable = activeClassroom
-    ? hasAssignedSeatAssignments(activeClassroom.basePlan.seats)
-    : false;
+  const basePlanAvailable = activeClassroom ? hasUsableBasePlan(activeClassroom) : false;
   const basePlanApplyArmed =
     !!activeClassroom &&
     !basePlanEditModeActive &&
@@ -673,7 +669,7 @@ export default function App() {
     const armedClassroom =
       data.classrooms.find((classroom) => classroom.id === basePlanApplyArmedClassroomId) ?? null;
 
-    if (!armedClassroom || !hasAssignedSeatAssignments(armedClassroom.basePlan.seats)) {
+    if (!armedClassroom || !hasUsableBasePlan(armedClassroom)) {
       setBasePlanApplyArmedClassroomId(null);
     }
   }, [basePlanApplyArmedClassroomId, data.classrooms]);
@@ -688,7 +684,7 @@ export default function App() {
 
     if (
       !revealClassroom ||
-      (seatReveal.mode === 'base-plan' && !hasAssignedSeatAssignments(revealClassroom.basePlan.seats))
+      (seatReveal.mode === 'base-plan' && !hasUsableBasePlan(revealClassroom))
     ) {
       setSeatReveal(null);
 
@@ -874,7 +870,11 @@ export default function App() {
       classroomId: activeClassroom.id,
       liveLayout: createBasePlan(activeClassroom),
     });
-    updateActiveClassroom(restoreBasePlanInClassroom);
+
+    if (hasUsableBasePlan(activeClassroom)) {
+      updateActiveClassroom(restoreBasePlanInClassroom);
+    }
+
     setAppMode(createBasePlanEditMode(activeClassroom.id));
     setSelectedStudentIds([]);
     setRandomSummary(null);

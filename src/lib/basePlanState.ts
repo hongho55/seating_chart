@@ -1,5 +1,5 @@
 import { cloneGroups, cloneSeats } from './layouts';
-import { sanitizeSeatAssignments } from './seatAssignments';
+import { clearSeatAssignments, hasAssignedSeatAssignments, sanitizeSeatAssignments } from './seatAssignments';
 import type { BasePlan, Classroom } from '../types';
 
 export function cloneBasePlan(basePlan: BasePlan): BasePlan {
@@ -15,6 +15,16 @@ export function createBasePlan(
 ): BasePlan {
   return {
     seats: cloneSeats(input.seats),
+    groups: cloneGroups(input.groups),
+    layoutConfig: { ...input.layoutConfig },
+  };
+}
+
+export function createEmptyBasePlan(
+  input: Pick<Classroom, 'seats' | 'groups' | 'layoutConfig'>,
+): BasePlan {
+  return {
+    seats: clearSeatAssignments(cloneSeats(input.seats)),
     groups: cloneGroups(input.groups),
     layoutConfig: { ...input.layoutConfig },
   };
@@ -54,9 +64,16 @@ export function saveClassroomBasePlan(classroom: Classroom): Classroom {
   return {
     ...classroom,
     basePlan: createBasePlan(classroom),
+    hasSavedBasePlan: true,
   };
 }
 
 export function synchronizeClassroomBasePlan(classroom: Classroom): Classroom {
   return saveClassroomBasePlan(classroom);
+}
+
+export function hasUsableBasePlan(
+  classroom: Pick<Classroom, 'basePlan' | 'hasSavedBasePlan'>,
+): boolean {
+  return classroom.hasSavedBasePlan && hasAssignedSeatAssignments(classroom.basePlan.seats);
 }
