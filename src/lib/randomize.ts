@@ -72,6 +72,66 @@ function getStudentMap(students: Student[]): Map<string, Student> {
   return new Map(students.map((student) => [student.id, student]));
 }
 
+function getStudentGender(
+  studentMap: Map<string, Student>,
+  studentId: string | null,
+): Gender | null {
+  if (!studentId) {
+    return null;
+  }
+
+  return studentMap.get(studentId)?.gender ?? null;
+}
+
+function getOrthogonalSeatPairs(seats: Seat[]): Array<[Seat, Seat]> {
+  const pairs: Array<[Seat, Seat]> = [];
+
+  seats.forEach((seat) => {
+    const rightNeighbor = seats
+      .filter((candidate) => candidate.id !== seat.id && candidate.y === seat.y && candidate.x > seat.x)
+      .sort((left, right) => left.x - right.x)[0];
+
+    if (rightNeighbor) {
+      pairs.push([seat, rightNeighbor]);
+    }
+
+    const bottomNeighbor = seats
+      .filter((candidate) => candidate.id !== seat.id && candidate.x === seat.x && candidate.y > seat.y)
+      .sort((left, right) => left.y - right.y)[0];
+
+    if (bottomNeighbor) {
+      pairs.push([seat, bottomNeighbor]);
+    }
+  });
+
+  return pairs;
+}
+
+function countMixedAdjacencyMisses(
+  groupSeats: Seat[],
+  studentMap: Map<string, Student>,
+  assignedStudentIdsBySeatId?: Map<string, string | null>,
+): number {
+  let misses = 0;
+
+  getOrthogonalSeatPairs(groupSeats).forEach(([leftSeat, rightSeat]) => {
+    const leftStudentId = assignedStudentIdsBySeatId?.get(leftSeat.id) ?? leftSeat.assignedStudentId;
+    const rightStudentId = assignedStudentIdsBySeatId?.get(rightSeat.id) ?? rightSeat.assignedStudentId;
+    const leftGender = getStudentGender(studentMap, leftStudentId);
+    const rightGender = getStudentGender(studentMap, rightStudentId);
+
+    if (!leftGender || !rightGender || leftGender === 'unknown' || rightGender === 'unknown') {
+      return;
+    }
+
+    if (leftGender === rightGender) {
+      misses += 1;
+    }
+  });
+
+  return misses;
+}
+
 function countConflictViolations(classroom: Classroom, seats: Seat[]): number {
   const groupMembers = getGroupMembers(classroom, seats);
   let violations = 0;
@@ -94,9 +154,11 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
 
   const studentMap = getStudentMap(classroom.students);
   const groupMembers = getGroupMembers(classroom, seats);
+  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
   let misses = 0;
 
-  groupMembers.forEach((studentIds) => {
+  classroom.groups.forEach((group) => {
+    const studentIds = groupMembers.get(group.id) ?? [];
     let maleCount = 0;
     let femaleCount = 0;
 
@@ -125,9 +187,15 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
       return;
     }
 
+    const groupSeats = sortSeatsByLayout(
+      group.seatIds
+        .map((seatId) => seatMap.get(seatId))
+        .filter((seat): seat is Seat => Boolean(seat)),
+    );
     const knownCount = maleCount + femaleCount;
 
     if (knownCount <= 1) {
+      misses += countMixedAdjacencyMisses(groupSeats, studentMap);
       return;
     }
 
@@ -136,6 +204,8 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
     if (maleCount === 0 || femaleCount === 0) {
       misses += knownCount;
     }
+
+    misses += countMixedAdjacencyMisses(groupSeats, studentMap);
   });
 
   return misses;
@@ -239,7 +309,92 @@ function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Sea
     nextBucket.currentCount += 1;
   });
 
+  if (classroom.randomSettings.genderMode === 'mixed') {
+    optimizeMixedSeatAssignments(classroom, seats);
+  }
+
   return seats;
+}
+
+function optimizeMixedSeatAssignments(classroom: Classroom, seats: Seat[]): void {
+  const studentMap = getStudentMap(classroom.students);
+  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
+
+  classroom.groups.forEach((group) => {
+    const groupSeats = sortSeatsByLayout(
+      group.seatIds
+        .map((seatId) => seatMap.get(seatId))
+        .filter((seat): seat is Seat => Boolean(seat)),
+    );
+    const movableSeats = groupSeats.filter((seat) => !seat.fixed && seat.assignedStudentId);
+
+    if (movableSeats.length <= 1) {
+      return;
+    }
+
+    const currentStudentIds = movableSeats.map((seat) => seat.assignedStudentId as string);
+    const assignedStudentIdsBySeatId = new Map(
+      groupSeats.map((seat) => [seat.id, seat.assignedStudentId]),
+    );
+    const nextStudentIds = [...currentStudentIds];
+    const used = new Array(currentStudentIds.length).fill(false);
+    let bestStudentIds = [...currentStudentIds];
+    let bestAdjacencyMisses = countMixedAdjacencyMisses(
+      groupSeats,
+      studentMap,
+      assignedStudentIdsBySeatId,
+    );
+    let bestMovement = 0;
+
+    const backtrack = (seatIndex: number) => {
+      if (seatIndex === movableSeats.length) {
+        const adjacencyMisses = countMixedAdjacencyMisses(
+          groupSeats,
+          studentMap,
+          assignedStudentIdsBySeatId,
+        );
+        const movement = nextStudentIds.reduce(
+          (total, studentId, index) => total + (studentId === currentStudentIds[index] ? 0 : 1),
+          0,
+        );
+
+        if (
+          adjacencyMisses < bestAdjacencyMisses ||
+          (adjacencyMisses === bestAdjacencyMisses && movement < bestMovement)
+        ) {
+          bestAdjacencyMisses = adjacencyMisses;
+          bestMovement = movement;
+          bestStudentIds = [...nextStudentIds];
+        }
+
+        return;
+      }
+
+      for (let index = 0; index < currentStudentIds.length; index += 1) {
+        if (used[index]) {
+          continue;
+        }
+
+        const studentId = currentStudentIds[index];
+
+        used[index] = true;
+        nextStudentIds[seatIndex] = studentId;
+        assignedStudentIdsBySeatId.set(movableSeats[seatIndex].id, studentId);
+        backtrack(seatIndex + 1);
+        assignedStudentIdsBySeatId.set(
+          movableSeats[seatIndex].id,
+          currentStudentIds[seatIndex],
+        );
+        used[index] = false;
+      }
+    };
+
+    backtrack(0);
+
+    movableSeats.forEach((seat, index) => {
+      seat.assignedStudentId = bestStudentIds[index];
+    });
+  });
 }
 
 function calculateUnplacedStudents(classroom: Classroom, seats: Seat[]): number {
