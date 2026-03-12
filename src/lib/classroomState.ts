@@ -4,6 +4,30 @@ import { cloneGroups, cloneSeats } from './layouts';
 import { sanitizeSeatAssignments } from './seatAssignments';
 import type { Classroom, LayoutSnapshot, ViewMode } from '../types';
 
+function sanitizeClassroomRules(classroom: Classroom): Classroom['rules'] {
+  const studentIds = new Set(classroom.students.map((student) => student.id));
+  const seenRuleKeys = new Set<string>();
+
+  return classroom.rules.filter((rule) => {
+    if (
+      rule.studentAId === rule.studentBId ||
+      !studentIds.has(rule.studentAId) ||
+      !studentIds.has(rule.studentBId)
+    ) {
+      return false;
+    }
+
+    const ruleKey = [rule.studentAId, rule.studentBId].sort().join('::');
+
+    if (seenRuleKeys.has(ruleKey)) {
+      return false;
+    }
+
+    seenRuleKeys.add(ruleKey);
+    return true;
+  });
+}
+
 export function sanitizeSnapshotAssignments(
   snapshot: LayoutSnapshot,
   validStudentIds: Iterable<string>,
@@ -23,6 +47,7 @@ export function sanitizeClassroomStudentAssignments(classroom: Classroom): Class
     ...classroom,
     seats: sanitizeSeatAssignments(classroom.seats, studentIds),
     basePlan: sanitizeBasePlanAssignments(classroom.basePlan, studentIds),
+    rules: sanitizeClassroomRules(classroom),
     snapshots: classroom.snapshots.map((snapshot) =>
       sanitizeSnapshotAssignments(snapshot, studentIds),
     ),

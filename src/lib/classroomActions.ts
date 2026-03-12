@@ -29,6 +29,10 @@ function touchClassroomLayout(classroom: Classroom): Classroom {
   return touchClassroom(classroom);
 }
 
+function hasStudentInClassroom(classroom: Classroom, studentId: string): boolean {
+  return classroom.students.some((student) => student.id === studentId);
+}
+
 export function applyClassroomPreset(
   classroom: Classroom,
   layoutConfig: LayoutPresetConfig,
@@ -74,7 +78,11 @@ export function swapStudentsInClassroom(
   firstStudentId: string,
   secondStudentId: string,
 ): Classroom {
-  if (firstStudentId === secondStudentId) {
+  if (
+    firstStudentId === secondStudentId ||
+    !hasStudentInClassroom(classroom, firstStudentId) ||
+    !hasStudentInClassroom(classroom, secondStudentId)
+  ) {
     return classroom;
   }
 
@@ -110,6 +118,10 @@ export function moveStudentToSeatInClassroom(
   studentId: string,
   targetSeatId: string,
 ): Classroom {
+  if (!hasStudentInClassroom(classroom, studentId)) {
+    return classroom;
+  }
+
   const seats = cloneSeats(classroom.seats);
   const sourceSeat = seats.find((seat) => seat.assignedStudentId === studentId) ?? null;
   const targetSeat = seats.find((seat) => seat.id === targetSeatId) ?? null;
@@ -168,7 +180,13 @@ export function canAddRuleToClassroom(
   studentAId: string,
   studentBId: string,
 ): boolean {
-  if (!studentAId || !studentBId || studentAId === studentBId) {
+  if (
+    !studentAId ||
+    !studentBId ||
+    studentAId === studentBId ||
+    !hasStudentInClassroom(classroom, studentAId) ||
+    !hasStudentInClassroom(classroom, studentBId)
+  ) {
     return false;
   }
 

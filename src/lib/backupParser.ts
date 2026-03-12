@@ -1,6 +1,7 @@
 import { createEmptyBasePlan } from './basePlanState';
 import { sanitizeClassroomStudentAssignments } from './classroomState';
 import { cloneGroups, cloneSeats, getDefaultVariant } from './layouts';
+import { hasAssignedSeatAssignments } from './seatAssignments';
 import type {
   AppData,
   BasePlan,
@@ -416,6 +417,17 @@ function parseBasePlan(
   };
 }
 
+function inferHasSavedBasePlan(
+  rawClassroom: Record<string, unknown>,
+  basePlan: BasePlan,
+): boolean {
+  if (isBoolean(rawClassroom.hasSavedBasePlan)) {
+    return rawClassroom.hasSavedBasePlan;
+  }
+
+  return hasAssignedSeatAssignments(basePlan.seats);
+}
+
 function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   if (!isRecord(value)) {
     return { ok: false, error: `classrooms[${index}] 항목이 객체가 아닙니다.` };
@@ -492,7 +504,7 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
   const randomSettings = value.randomSettings == null ? { genderMode: 'random' } : value.randomSettings;
-  const hasSavedBasePlan = isBoolean(value.hasSavedBasePlan) ? value.hasSavedBasePlan : false;
+  const hasSavedBasePlan = inferHasSavedBasePlan(value, basePlan.value);
 
   if (!isString(boardLabel)) {
     return { ok: false, error: `classrooms[${index}].boardLabel은 문자열이어야 합니다.` };

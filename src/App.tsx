@@ -847,6 +847,10 @@ export default function App() {
       closeBasePlanEditMode();
     }
 
+    clearSeatSelections();
+    setRuleDraft({ studentAId: '', studentBId: '' });
+    setRandomSummary(null);
+
     setData((current) => ({
       ...current,
       activeClassroomId: classroomId,
