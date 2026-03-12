@@ -158,9 +158,7 @@ function createAssignmentBuckets(classroom: Classroom, seats: Seat[]): Assignmen
       return {
         id: group.id,
         currentCount: groupSeats.filter((seat) => seat.fixed && seat.assignedStudentId).length,
-        openSeats: shuffle(
-          groupSeats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
-        ),
+        openSeats: groupSeats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
         priority: index + Math.random(),
       };
     })
@@ -231,7 +229,7 @@ function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Sea
       return;
     }
 
-    const targetSeat = nextBucket.openSeats.pop();
+    const targetSeat = nextBucket.openSeats.shift();
 
     if (!targetSeat) {
       return;
