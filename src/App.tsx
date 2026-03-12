@@ -91,6 +91,12 @@ type BasePlanEditSession = {
   liveLayout: BasePlan;
 };
 
+type NewClassroomInput = {
+  grade: string;
+  className: string;
+  subjectRoomName: string;
+};
+
 type RandomSummary = {
   conflicts: number;
   genderMisses: number;
@@ -105,6 +111,12 @@ type SeatRevealState = {
   visibleCount: number;
   mode: SeatRevealMode;
   layout: BasePlan;
+};
+
+const DEFAULT_NEW_CLASSROOM: NewClassroomInput = {
+  grade: '5학년',
+  className: '1반',
+  subjectRoomName: '과학실',
 };
 
 function createPersistedAppData(
@@ -122,6 +134,64 @@ function createPersistedAppData(
         ? applyLayoutToClassroom(classroom, basePlanEditSession.liveLayout)
         : classroom,
     ),
+  };
+}
+
+function extractFirstNumber(text: string): number | null {
+  const matched = text.match(/\d+/);
+
+  if (!matched) {
+    return null;
+  }
+
+  const parsed = Number(matched[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function replaceFirstNumber(text: string, nextNumber: number): string {
+  const matched = text.match(/\d+/);
+
+  if (!matched || matched.index == null) {
+    return text;
+  }
+
+  return `${text.slice(0, matched.index)}${nextNumber}${text.slice(matched.index + matched[0].length)}`;
+}
+
+function createSuggestedNewClassroomInput(
+  classrooms: Classroom[],
+  activeClassroom: Classroom | null,
+): NewClassroomInput {
+  const baseClassroom = activeClassroom ?? classrooms[classrooms.length - 1] ?? null;
+
+  if (!baseClassroom) {
+    return { ...DEFAULT_NEW_CLASSROOM };
+  }
+
+  const grade = baseClassroom.grade.trim() || DEFAULT_NEW_CLASSROOM.grade;
+  const sameGradeClassrooms = classrooms.filter((classroom) => classroom.grade.trim() === grade);
+  const classNumbers = sameGradeClassrooms
+    .map((classroom) => extractFirstNumber(classroom.className))
+    .filter((value): value is number => value !== null);
+  const templateClassName =
+    sameGradeClassrooms.find((classroom) => extractFirstNumber(classroom.className) !== null)?.className.trim() ||
+    baseClassroom.className.trim() ||
+    DEFAULT_NEW_CLASSROOM.className;
+  const nextClassNumber =
+    classNumbers.length > 0
+      ? Math.max(...classNumbers) + 1
+      : (extractFirstNumber(templateClassName) ?? 0) + 1;
+  const className =
+    extractFirstNumber(templateClassName) !== null
+      ? replaceFirstNumber(templateClassName, nextClassNumber)
+      : DEFAULT_NEW_CLASSROOM.className;
+  const subjectRoomName =
+    baseClassroom.subjectRoomName.trim() || DEFAULT_NEW_CLASSROOM.subjectRoomName;
+
+  return {
+    grade,
+    className,
+    subjectRoomName,
   };
 }
 
@@ -341,11 +411,7 @@ export default function App() {
   const [presetRows, setPresetRows] = useState(2);
   const [presetCols, setPresetCols] = useState(2);
   const [bulkStudents, setBulkStudents] = useState('');
-  const [newClassroom, setNewClassroom] = useState({
-    grade: '5학년',
-    className: '1반',
-    subjectRoomName: '과학실',
-  });
+  const [newClassroom, setNewClassroom] = useState<NewClassroomInput>(DEFAULT_NEW_CLASSROOM);
   const [ruleDraft, setRuleDraft] = useState({
     studentAId: '',
     studentBId: '',
@@ -554,6 +620,14 @@ export default function App() {
     flippedView ? renderCanvasWidth - teacherBoardCenterX : teacherBoardCenterX;
 
   useEffect(() => {
+    if (!createPanelOpen) {
+      return;
+    }
+
+    setNewClassroom(createSuggestedNewClassroomInput(data.classrooms, activeClassroom));
+  }, [createPanelOpen, data.classrooms, activeClassroom]);
+
+  useEffect(() => {
     if (!activeClassroom) {
       return;
     }
@@ -690,6 +764,10 @@ export default function App() {
 
   function handleCreateClassroom() {
     const classroom = createEmptyClassroom(newClassroom);
+    const nextSuggestedClassroom = createSuggestedNewClassroomInput(
+      [...data.classrooms, classroom],
+      classroom,
+    );
 
     if (basePlanEditModeActive) {
       closeBasePlanEditMode();
@@ -704,6 +782,7 @@ export default function App() {
     setAppMode(createDefaultAppMode());
     setSelectedStudentIds([]);
     setRandomSummary(null);
+    setNewClassroom(nextSuggestedClassroom);
     setClassroomMenuOpen(false);
     setCreatePanelOpen(false);
   }
