@@ -32,6 +32,7 @@ import {
   deleteRuleFromClassroom,
   deleteStudentFromClassroom,
   exitBasePlanEditInClassroom,
+  moveStudentToSeatInClassroom,
   resetClassroomStudents,
   restoreBasePlanInClassroom,
   restoreSnapshotInClassroom,
@@ -325,6 +326,7 @@ export default function App() {
   const [data, setData] = useState<AppData>(() => loadAppData());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
   const [presetType, setPresetType] = useState<SeatPreset>('group6');
   const [presetVariant, setPresetVariant] = useState<DeskVariant>(getDefaultVariant('group6'));
   const [presetRows, setPresetRows] = useState(2);
@@ -385,6 +387,7 @@ export default function App() {
     }
 
     swapStudentSeats(selectedStudentIds[0], selectedStudentIds[1]);
+    setSelectedSeatId(null);
     clearSelectedStudentsTimeoutRef.current = window.setTimeout(() => {
       setSelectedStudentIds([]);
       clearSelectedStudentsTimeoutRef.current = null;
@@ -733,7 +736,27 @@ export default function App() {
     );
   }
 
-  function handleStudentSelect(studentId: string) {
+  function moveStudentToSeat(studentId: string, seatId: string) {
+    if (!activeClassroom) {
+      return;
+    }
+
+    updateActiveClassroom((classroom) =>
+      moveStudentToSeatInClassroom(classroom, studentId, seatId),
+    );
+  }
+
+  function clearSeatSelections() {
+    if (clearSelectedStudentsTimeoutRef.current) {
+      window.clearTimeout(clearSelectedStudentsTimeoutRef.current);
+      clearSelectedStudentsTimeoutRef.current = null;
+    }
+
+    setSelectedStudentIds([]);
+    setSelectedSeatId(null);
+  }
+
+  function toggleStudentSelection(studentId: string) {
     if (clearSelectedStudentsTimeoutRef.current) {
       window.clearTimeout(clearSelectedStudentsTimeoutRef.current);
       clearSelectedStudentsTimeoutRef.current = null;
@@ -750,6 +773,47 @@ export default function App() {
 
       return [...current, studentId];
     });
+  }
+
+  function handleStudentSelect(studentId: string) {
+    if (selectedSeatId) {
+      moveStudentToSeat(studentId, selectedSeatId);
+      clearSeatSelections();
+      return;
+    }
+
+    toggleStudentSelection(studentId);
+  }
+
+  function handleSeatSelect(seat: Seat) {
+    if (!boardInteractionEnabled) {
+      return;
+    }
+
+    if (seat.assignedStudentId) {
+      if (selectedSeatId) {
+        moveStudentToSeat(seat.assignedStudentId, selectedSeatId);
+        clearSeatSelections();
+        return;
+      }
+
+      setSelectedSeatId(null);
+      toggleStudentSelection(seat.assignedStudentId);
+      return;
+    }
+
+    if (selectedStudentIds.length === 1) {
+      moveStudentToSeat(selectedStudentIds[0], seat.id);
+      clearSeatSelections();
+      return;
+    }
+
+    if (clearSelectedStudentsTimeoutRef.current) {
+      window.clearTimeout(clearSelectedStudentsTimeoutRef.current);
+      clearSelectedStudentsTimeoutRef.current = null;
+    }
+
+    setSelectedSeatId((current) => (current === seat.id ? null : seat.id));
   }
 
   function handleToggleSeatPin(seatId: string) {
@@ -1297,10 +1361,10 @@ export default function App() {
                           const student = boardClassroom!.students.find(
                             (candidate) => candidate.id === seat.assignedStudentId,
                           );
-                          const studentSelected =
-                            boardInteractionEnabled && student
-                              ? selectedStudentIds.includes(student.id)
-                              : false;
+                          const seatSelected =
+                            boardInteractionEnabled &&
+                            (selectedSeatId === seat.id ||
+                              (student ? selectedStudentIds.includes(student.id) : false));
                           const seatFrame = flipFrame(
                             seat.x + renderOffsetX,
                             seat.y,
@@ -1314,15 +1378,11 @@ export default function App() {
                           return (
                             <div
                               key={seat.id}
-                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${student && boardInteractionEnabled ? 'clickable' : ''} ${studentSelected ? 'active' : ''}`}
+                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${boardInteractionEnabled ? 'clickable' : ''} ${seatSelected ? 'active' : ''}`}
                               style={{ left: seatFrame.left, top: seatFrame.top }}
-                              onClick={() => {
-                                if (student && boardInteractionEnabled) {
-                                  handleStudentSelect(student.id);
-                                }
-                              }}
-                              role={student && boardInteractionEnabled ? 'button' : undefined}
-                              tabIndex={student && boardInteractionEnabled ? 0 : undefined}
+                              onClick={() => handleSeatSelect(seat)}
+                              role={boardInteractionEnabled ? 'button' : undefined}
+                              tabIndex={boardInteractionEnabled ? 0 : undefined}
                             >
                               <div className="seat-content">
                                 {student && boardInteractionEnabled ? (
@@ -1551,7 +1611,7 @@ export default function App() {
 
                     <div className="inspector-section">
                       <div className="mini-title">학생 목록</div>
-                      <p className="helper-text">학생 두 명을 차례로 클릭하면 자리가 서로 바뀝니다.</p>
+                      <p className="helper-text">학생 두 명 또는 학생과 빈자리를 차례로 클릭하면 자리가 바뀝니다.</p>
                       {selectedStudentIds.length > 0 ? (
                         <div className="status-card compact-status">
                           <span>

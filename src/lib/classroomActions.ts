@@ -105,6 +105,32 @@ export function swapStudentsInClassroom(
   });
 }
 
+export function moveStudentToSeatInClassroom(
+  classroom: Classroom,
+  studentId: string,
+  targetSeatId: string,
+): Classroom {
+  const seats = cloneSeats(classroom.seats);
+  const sourceSeat = seats.find((seat) => seat.assignedStudentId === studentId) ?? null;
+  const targetSeat = seats.find((seat) => seat.id === targetSeatId) ?? null;
+
+  if (!sourceSeat || !targetSeat || targetSeat.assignedStudentId || sourceSeat.id === targetSeat.id) {
+    return classroom;
+  }
+
+  const sourceFixed = sourceSeat.fixed;
+
+  sourceSeat.assignedStudentId = null;
+  sourceSeat.fixed = false;
+  targetSeat.assignedStudentId = studentId;
+  targetSeat.fixed = sourceFixed;
+
+  return touchClassroomLayout({
+    ...classroom,
+    seats,
+  });
+}
+
 export function toggleSeatPinInClassroom(classroom: Classroom, seatId: string): Classroom {
   return touchClassroomLayout({
     ...classroom,
