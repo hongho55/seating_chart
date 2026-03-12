@@ -8,6 +8,13 @@ import type {
 } from '../types';
 import { cloneSeats } from './layouts';
 
+type AssignmentBucket = {
+  id: string;
+  currentCount: number;
+  openSeats: Seat[];
+  priority: number;
+};
+
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items];
 
@@ -19,6 +26,20 @@ function shuffle<T>(items: T[]): T[] {
   }
 
   return copy;
+}
+
+function sortSeatsByLayout(seats: Seat[]): Seat[] {
+  return [...seats].sort((left, right) => {
+    if (left.y !== right.y) {
+      return left.y - right.y;
+    }
+
+    if (left.x !== right.x) {
+      return left.x - right.x;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function getGroupMembers(classroom: Classroom, seats: Seat[]): Map<string, string[]> {
@@ -120,10 +141,76 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
   return misses;
 }
 
+function createAssignmentBuckets(classroom: Classroom, seats: Seat[]): AssignmentBucket[] {
+  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
+  const buckets: AssignmentBucket[] = classroom.groups
+    .map((group, index) => {
+      const groupSeats = sortSeatsByLayout(
+        group.seatIds
+          .map((seatId) => seatMap.get(seatId))
+          .filter((seat): seat is Seat => Boolean(seat)),
+      );
+
+      if (groupSeats.length === 0) {
+        return null;
+      }
+
+      return {
+        id: group.id,
+        currentCount: groupSeats.filter((seat) => seat.fixed && seat.assignedStudentId).length,
+        openSeats: shuffle(
+          groupSeats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
+        ),
+        priority: index + Math.random(),
+      };
+    })
+    .filter((bucket): bucket is AssignmentBucket => Boolean(bucket));
+  const groupedSeatIds = new Set(classroom.groups.flatMap((group) => group.seatIds));
+  const ungroupedSeats = sortSeatsByLayout(
+    seats.filter((seat) => !groupedSeatIds.has(seat.id)),
+  );
+
+  ungroupedSeats.forEach((seat, index) => {
+    buckets.push({
+      id: seat.id,
+      currentCount: seat.fixed && seat.assignedStudentId ? 1 : 0,
+      openSeats: seat.fixed && seat.assignedStudentId ? [] : [seat],
+      priority: classroom.groups.length + index + Math.random(),
+    });
+  });
+
+  return buckets;
+}
+
+function pickBalancedBucket(buckets: AssignmentBucket[]): AssignmentBucket | null {
+  let bestBucket: AssignmentBucket | null = null;
+
+  buckets.forEach((bucket) => {
+    if (bucket.openSeats.length === 0) {
+      return;
+    }
+
+    if (!bestBucket) {
+      bestBucket = bucket;
+      return;
+    }
+
+    if (bucket.currentCount < bestBucket.currentCount) {
+      bestBucket = bucket;
+      return;
+    }
+
+    if (bucket.currentCount === bestBucket.currentCount && bucket.priority < bestBucket.priority) {
+      bestBucket = bucket;
+    }
+  });
+
+  return bestBucket;
+}
+
 function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Seat[] {
   const seats = cloneSeats(classroom.seats);
   const availableStudentIds = new Set(shuffledStudents.map((student) => student.id));
-  let studentIndex = 0;
 
   seats.forEach((seat) => {
     if (seat.fixed && seat.assignedStudentId) {
@@ -135,21 +222,23 @@ function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Sea
   });
 
   const remainingStudents = shuffledStudents.filter((student) => availableStudentIds.has(student.id));
+  const buckets = createAssignmentBuckets(classroom, seats);
 
-  seats.forEach((seat) => {
-    if (seat.fixed && seat.assignedStudentId) {
+  remainingStudents.forEach((student) => {
+    const nextBucket = pickBalancedBucket(buckets);
+
+    if (!nextBucket) {
       return;
     }
 
-    const nextStudent = remainingStudents[studentIndex];
+    const targetSeat = nextBucket.openSeats.pop();
 
-    if (!nextStudent) {
-      seat.assignedStudentId = null;
+    if (!targetSeat) {
       return;
     }
 
-    seat.assignedStudentId = nextStudent.id;
-    studentIndex += 1;
+    targetSeat.assignedStudentId = student.id;
+    nextBucket.currentCount += 1;
   });
 
   return seats;
