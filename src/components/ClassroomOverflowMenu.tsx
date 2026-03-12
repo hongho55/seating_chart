@@ -2,12 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 
 interface ClassroomOverflowMenuProps {
   isBasePlanEditMode: boolean;
+  basePlanApplyArmed: boolean;
+  basePlanApplyDisabled: boolean;
+  basePlanApplyHelperText: string;
   onToggleBasePlanEditMode: () => void;
+  onToggleBasePlanApplyArmed: () => void;
 }
 
 export function ClassroomOverflowMenu({
   isBasePlanEditMode,
+  basePlanApplyArmed,
+  basePlanApplyDisabled,
+  basePlanApplyHelperText,
   onToggleBasePlanEditMode,
+  onToggleBasePlanApplyArmed,
 }: ClassroomOverflowMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +85,21 @@ export function ClassroomOverflowMenu({
           >
             {isBasePlanEditMode ? '기준 배치 편집 종료' : '기준 배치 편집'}
           </button>
+          <div className="classroom-overflow-divider" />
+          <button
+            className={`classroom-overflow-item classroom-overflow-toggle ${basePlanApplyArmed ? 'active' : ''}`}
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={basePlanApplyArmed}
+            disabled={basePlanApplyDisabled}
+            onClick={onToggleBasePlanApplyArmed}
+          >
+            <span>기준안 적용</span>
+            <span>{basePlanApplyArmed ? 'ON' : 'OFF'}</span>
+          </button>
+          <p className={`classroom-overflow-helper ${basePlanApplyArmed ? 'active' : ''}`}>
+            {basePlanApplyHelperText}
+          </p>
         </div>
       ) : null}
     </div>

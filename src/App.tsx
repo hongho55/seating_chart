@@ -1,5 +1,4 @@
 import { startTransition, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { BasePlanArmControl } from './components/BasePlanArmControl';
 import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import {
@@ -412,12 +411,19 @@ export default function App() {
     !!activeClassroom &&
     !!basePlanReveal &&
     basePlanReveal.classroomId === activeClassroom.id;
+  const basePlanApplyDisabled =
+    basePlanEditModeActive || !basePlanAvailable || basePlanRevealActive;
+  const basePlanApplyHelperText = basePlanRevealActive
+    ? '기준안 공개 중에는 변경할 수 없습니다.'
+    : !basePlanAvailable
+      ? '저장된 기준안이 있어야 사용할 수 있습니다.'
+      : basePlanApplyArmed
+        ? '다음 자리 배정 시작에서 저장된 기준안을 그대로 공개합니다.'
+        : '다음 자리 배정 시작에서 일반 랜덤 배정을 사용합니다.';
   const seatingActionHelperText =
     basePlanRevealActive && basePlanReveal
       ? `기준안 공개 중 · ${basePlanReveal.visibleCount}/${basePlanReveal.orderedSeatIds.length} 자리를 순서대로 보여주고 있습니다.`
-      : basePlanApplyArmed
-        ? '기준안 적용 예정 · 저장된 기준안을 그대로 공개합니다.'
-        : '일반 모드 · 성별 조건과 금지 조합을 반영해 새로 랜덤 배정합니다.';
+      : '자리 배정 시작을 누르면 현재 설정에 맞춰 배정합니다.';
   const boardClassroom =
     activeClassroom && basePlanRevealActive && basePlanReveal
       ? createProgressiveBasePlanClassroom(
@@ -1184,7 +1190,11 @@ export default function App() {
                   </div>
                   <ClassroomOverflowMenu
                     isBasePlanEditMode={basePlanEditModeActive}
+                    basePlanApplyArmed={basePlanApplyArmed}
+                    basePlanApplyDisabled={basePlanApplyDisabled}
+                    basePlanApplyHelperText={basePlanApplyHelperText}
                     onToggleBasePlanEditMode={handleToggleBasePlanEditMode}
+                    onToggleBasePlanApplyArmed={handleToggleBasePlanApplyArmed}
                   />
                 </div>
                 {basePlanEditModeActive ? <span className="mode-status-pill">기준 배치 편집 중</span> : null}
@@ -1554,16 +1564,6 @@ export default function App() {
                         </p>
                       ) : (
                         <>
-                          <BasePlanArmControl
-                            armed={basePlanApplyArmed}
-                            disabled={!basePlanAvailable || basePlanRevealActive}
-                            helperText={
-                              basePlanRevealActive
-                                ? '기준안 공개 중 · 저장된 배치를 한 자리씩 보여주고 있습니다.'
-                                : undefined
-                            }
-                            onToggle={handleToggleBasePlanApplyArmed}
-                          />
                           <button
                             className="primary-button"
                             type="button"

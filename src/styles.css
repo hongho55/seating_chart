@@ -232,6 +232,60 @@ button {
   text-align: left;
 }
 
+.classroom-overflow-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.classroom-overflow-divider {
+  height: 1px;
+  margin: 10px 2px;
+  background: rgba(48, 75, 92, 0.1);
+}
+
+.classroom-overflow-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.classroom-overflow-toggle span:last-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(48, 75, 92, 0.08);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #4c5f6d;
+}
+
+.classroom-overflow-toggle.active {
+  border-color: rgba(212, 162, 26, 0.48);
+  background: #fbf3d7;
+  color: #7a5b04;
+}
+
+.classroom-overflow-toggle.active span:last-child {
+  background: #f4c95d;
+  color: #5b4100;
+}
+
+.classroom-overflow-helper {
+  margin: 8px 2px 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #60707b;
+}
+
+.classroom-overflow-helper.active {
+  color: #7a5b04;
+}
+
 .student-row {
   display: flex;
   align-items: stretch;
