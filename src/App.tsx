@@ -597,14 +597,14 @@ export default function App() {
       : '자리 배정 시작을 누르면 현재 설정에 맞춰 배정합니다.';
   const resolvedSeatingActionHelperText =
     seatRevealActive && seatReveal?.mode === 'randomize'
-      ? `?먮━ 諛곗젙 ?좊땲硫붿씠??以?쨌 ${seatReveal.visibleCount}/${seatReveal.orderedSeatIds.length} ?먮━瑜??쒖꽌?濡?怨듦컻?섍퀬 ?덉뒿?덈떎.`
+      ? `자리 배정 애니메이션 중 · ${seatReveal.visibleCount}/${seatReveal.orderedSeatIds.length} 자리를 순서대로 보여주고 있습니다.`
       : seatingActionHelperText;
   const randomizeButtonLabel =
     seatRevealActive
       ? seatReveal?.mode === 'base-plan'
-        ? '湲곗???怨듦컻 以?..'
-        : '?먮━ 諛곗젙 ?좊땲硫붿씠??以?..'
-      : '?먮━ 諛곗젙 ?쒖옉';
+        ? '기준안 공개 중...'
+        : '자리 배정 애니메이션 중...'
+      : '자리 배정 시작';
   const boardClassroom =
     activeClassroom && basePlanRevealActive && basePlanReveal
       ? createProgressiveRevealClassroom(
