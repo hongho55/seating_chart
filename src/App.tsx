@@ -225,7 +225,7 @@ function flipFrame(
 }
 
 function getSeatVisibleOverhang(seat: Seat, viewMode: ViewMode): number {
-  return viewMode === 'teacher' && seat.assignedStudentId ? SEAT_PIN_OVERHANG : 0;
+  return seat.assignedStudentId ? SEAT_PIN_OVERHANG : 0;
 }
 
 function getLayoutBounds(
@@ -424,7 +424,7 @@ export default function App() {
         )
       : activeClassroom;
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
-  const boardInteractionEnabled = viewMode === 'teacher' && !basePlanRevealActive;
+  const boardInteractionEnabled = !basePlanRevealActive;
   const layoutBounds = boardClassroom ? getVisibleLayoutBounds(boardClassroom, viewMode) : null;
   const layoutVisibleWidth = layoutBounds
     ? layoutBounds.maxX - layoutBounds.minX
