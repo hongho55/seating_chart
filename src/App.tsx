@@ -3,7 +3,6 @@ import { BasePlanArmControl } from './components/BasePlanArmControl';
 import { BasePlanEditActionBar } from './components/BasePlanEditActionBar';
 import { ClassroomOverflowMenu } from './components/ClassroomOverflowMenu';
 import {
-  applyBasePlanToClassroom,
   applyLayoutToClassroom,
   createBasePlan,
 } from './lib/basePlanState';
@@ -37,7 +36,6 @@ import {
   restoreBasePlanInClassroom,
   restoreSnapshotInClassroom,
   saveClassroomSnapshot,
-  setSeatsFromBasePlanInClassroom,
   setClassroomSeats,
   swapStudentsInClassroom,
   toggleSeatPinInClassroom,
@@ -838,10 +836,7 @@ export default function App() {
       return;
     }
 
-    applyRandomize(
-      applyBasePlanToClassroom(activeClassroom),
-      setSeatsFromBasePlanInClassroom,
-    );
+    applyRandomize(activeClassroom);
   }
 
   function handleRandomizeAllSeats() {
