@@ -114,8 +114,8 @@ type SeatRevealState = {
 };
 
 const DEFAULT_NEW_CLASSROOM: NewClassroomInput = {
-  grade: '5학년',
-  className: '1반',
+  grade: '5',
+  className: '1',
   subjectRoomName: '과학실',
 };
 
@@ -148,14 +148,32 @@ function extractFirstNumber(text: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function replaceFirstNumber(text: string, nextNumber: number): string {
-  const matched = text.match(/\d+/);
+function normalizeNumberInput(text: string): string {
+  const digits = text.replace(/\D+/g, '');
 
-  if (!matched || matched.index == null) {
-    return text;
-  }
+  return digits.replace(/^0+(?=\d)/, '');
+}
 
-  return `${text.slice(0, matched.index)}${nextNumber}${text.slice(matched.index + matched[0].length)}`;
+function formatGradeLabel(text: string): string {
+  const normalized = normalizeNumberInput(text) || DEFAULT_NEW_CLASSROOM.grade;
+  return `${normalized}학년`;
+}
+
+function formatClassLabel(text: string): string {
+  const normalized = normalizeNumberInput(text) || DEFAULT_NEW_CLASSROOM.className;
+  return `${normalized}반`;
+}
+
+function createNewClassroomPayload(input: NewClassroomInput): {
+  grade: string;
+  className: string;
+  subjectRoomName: string;
+} {
+  return {
+    grade: formatGradeLabel(input.grade),
+    className: formatClassLabel(input.className),
+    subjectRoomName: input.subjectRoomName.trim() || DEFAULT_NEW_CLASSROOM.subjectRoomName,
+  };
 }
 
 function createSuggestedNewClassroomInput(
@@ -168,8 +186,11 @@ function createSuggestedNewClassroomInput(
     return { ...DEFAULT_NEW_CLASSROOM };
   }
 
-  const grade = baseClassroom.grade.trim() || DEFAULT_NEW_CLASSROOM.grade;
-  const sameGradeClassrooms = classrooms.filter((classroom) => classroom.grade.trim() === grade);
+  const grade =
+    normalizeNumberInput(baseClassroom.grade) || DEFAULT_NEW_CLASSROOM.grade;
+  const sameGradeClassrooms = classrooms.filter(
+    (classroom) => normalizeNumberInput(classroom.grade) === grade,
+  );
   const classNumbers = sameGradeClassrooms
     .map((classroom) => extractFirstNumber(classroom.className))
     .filter((value): value is number => value !== null);
@@ -183,7 +204,7 @@ function createSuggestedNewClassroomInput(
       : (extractFirstNumber(templateClassName) ?? 0) + 1;
   const className =
     extractFirstNumber(templateClassName) !== null
-      ? replaceFirstNumber(templateClassName, nextClassNumber)
+      ? String(nextClassNumber)
       : DEFAULT_NEW_CLASSROOM.className;
   const subjectRoomName =
     baseClassroom.subjectRoomName.trim() || DEFAULT_NEW_CLASSROOM.subjectRoomName;
@@ -763,7 +784,7 @@ export default function App() {
   }
 
   function handleCreateClassroom() {
-    const classroom = createEmptyClassroom(newClassroom);
+    const classroom = createEmptyClassroom(createNewClassroomPayload(newClassroom));
     const nextSuggestedClassroom = createSuggestedNewClassroomInput(
       [...data.classrooms, classroom],
       classroom,
@@ -1447,18 +1468,28 @@ export default function App() {
                       <label className="field">
                         <span>학년</span>
                         <input
+                          inputMode="numeric"
+                          placeholder="5"
                           value={newClassroom.grade}
                           onChange={(event) =>
-                            setNewClassroom((current) => ({ ...current, grade: event.target.value }))
+                            setNewClassroom((current) => ({
+                              ...current,
+                              grade: normalizeNumberInput(event.target.value),
+                            }))
                           }
                         />
                       </label>
                       <label className="field">
                         <span>반</span>
                         <input
+                          inputMode="numeric"
+                          placeholder="1"
                           value={newClassroom.className}
                           onChange={(event) =>
-                            setNewClassroom((current) => ({ ...current, className: event.target.value }))
+                            setNewClassroom((current) => ({
+                              ...current,
+                              className: normalizeNumberInput(event.target.value),
+                            }))
                           }
                         />
                       </label>
@@ -1993,18 +2024,28 @@ export default function App() {
               <label className="field">
                 <span>학년</span>
                 <input
+                  inputMode="numeric"
+                  placeholder="5"
                   value={newClassroom.grade}
                   onChange={(event) =>
-                    setNewClassroom((current) => ({ ...current, grade: event.target.value }))
+                    setNewClassroom((current) => ({
+                      ...current,
+                      grade: normalizeNumberInput(event.target.value),
+                    }))
                   }
                 />
               </label>
               <label className="field">
                 <span>반</span>
                 <input
+                  inputMode="numeric"
+                  placeholder="1"
                   value={newClassroom.className}
                   onChange={(event) =>
-                    setNewClassroom((current) => ({ ...current, className: event.target.value }))
+                    setNewClassroom((current) => ({
+                      ...current,
+                      className: normalizeNumberInput(event.target.value),
+                    }))
                   }
                 />
               </label>
