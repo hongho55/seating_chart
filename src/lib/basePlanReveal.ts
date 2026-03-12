@@ -1,9 +1,9 @@
-import { applyBasePlanToClassroom } from './basePlanState';
-import type { Classroom, Seat } from '../types';
+import { applyLayoutToClassroom } from './basePlanState';
+import type { BasePlan, Classroom, Seat } from '../types';
 
 export const BASE_PLAN_REVEAL_STEP_MS = 180;
 
-export function getBasePlanRevealSeatIds(
+export function getOrderedRevealSeatIds(
   seats: ReadonlyArray<Pick<Seat, 'id' | 'x' | 'y' | 'assignedStudentId'>>,
 ): string[] {
   return seats
@@ -23,20 +23,40 @@ export function getBasePlanRevealSeatIds(
     .map((seat) => seat.id);
 }
 
-export function createProgressiveBasePlanClassroom(
+export function getBasePlanRevealSeatIds(
+  seats: ReadonlyArray<Pick<Seat, 'id' | 'x' | 'y' | 'assignedStudentId'>>,
+): string[] {
+  return getOrderedRevealSeatIds(seats);
+}
+
+export function createProgressiveRevealClassroom(
   classroom: Classroom,
+  layout: BasePlan,
   orderedSeatIds: ReadonlyArray<string>,
   visibleCount: number,
 ): Classroom {
   const visibleSeatIds = new Set(orderedSeatIds.slice(0, visibleCount));
-  const basePlanClassroom = applyBasePlanToClassroom(classroom);
+  const revealedLayoutClassroom = applyLayoutToClassroom(classroom, layout);
 
   return {
-    ...basePlanClassroom,
-    seats: basePlanClassroom.seats.map((seat) =>
+    ...revealedLayoutClassroom,
+    seats: revealedLayoutClassroom.seats.map((seat) =>
       visibleSeatIds.has(seat.id)
         ? seat
         : { ...seat, assignedStudentId: null, fixed: false },
     ),
   };
+}
+
+export function createProgressiveBasePlanClassroom(
+  classroom: Classroom,
+  orderedSeatIds: ReadonlyArray<string>,
+  visibleCount: number,
+): Classroom {
+  return createProgressiveRevealClassroom(
+    classroom,
+    classroom.basePlan,
+    orderedSeatIds,
+    visibleCount,
+  );
 }

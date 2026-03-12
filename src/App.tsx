@@ -7,8 +7,8 @@ import {
 } from './lib/basePlanState';
 import {
   BASE_PLAN_REVEAL_STEP_MS,
-  createProgressiveBasePlanClassroom,
-  getBasePlanRevealSeatIds,
+  createProgressiveRevealClassroom,
+  getOrderedRevealSeatIds,
 } from './lib/basePlanReveal';
 import { createId } from './lib/ids';
 import {
@@ -91,10 +91,20 @@ type BasePlanEditSession = {
   liveLayout: BasePlan;
 };
 
-type BasePlanRevealState = {
+type RandomSummary = {
+  conflicts: number;
+  genderMisses: number;
+  unplacedStudents: number;
+};
+
+type SeatRevealMode = 'base-plan' | 'randomize';
+
+type SeatRevealState = {
   classroomId: string;
   orderedSeatIds: string[];
   visibleCount: number;
+  mode: SeatRevealMode;
+  layout: BasePlan;
 };
 
 function createPersistedAppData(
@@ -340,18 +350,14 @@ export default function App() {
     studentAId: '',
     studentBId: '',
   });
-  const [randomSummary, setRandomSummary] = useState<{
-    conflicts: number;
-    genderMisses: number;
-    unplacedStudents: number;
-  } | null>(null);
+  const [randomSummary, setRandomSummary] = useState<RandomSummary | null>(null);
   const [basePlanApplyArmedClassroomId, setBasePlanApplyArmedClassroomId] = useState<string | null>(
     null,
   );
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('layout');
   const [appMode, setAppMode] = useState(() => createDefaultAppMode());
   const [basePlanEditSession, setBasePlanEditSession] = useState<BasePlanEditSession | null>(null);
-  const [basePlanReveal, setBasePlanReveal] = useState<BasePlanRevealState | null>(null);
+  const [seatReveal, setSeatReveal] = useState<SeatRevealState | null>(null);
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [boardScale, setBoardScale] = useState(1);
@@ -360,6 +366,7 @@ export default function App() {
   const createPanelRef = useRef<HTMLDivElement | null>(null);
   const backupFileInputRef = useRef<HTMLInputElement | null>(null);
   const clearSelectedStudentsTimeoutRef = useRef<number | null>(null);
+  const revealAudioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -377,6 +384,10 @@ export default function App() {
       if (clearSelectedStudentsTimeoutRef.current) {
         window.clearTimeout(clearSelectedStudentsTimeoutRef.current);
       }
+
+      if (revealAudioContextRef.current) {
+        void revealAudioContextRef.current.close();
+      }
     };
   }, []);
 
@@ -393,6 +404,77 @@ export default function App() {
     }, 180);
   }, [selectedStudentIds]);
 
+  function getRevealAudioContext(): AudioContext | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const audioWindow = window as Window & typeof globalThis & {
+      webkitAudioContext?: typeof AudioContext;
+    };
+    const AudioContextConstructor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      return null;
+    }
+
+    if (!revealAudioContextRef.current || revealAudioContextRef.current.state === 'closed') {
+      revealAudioContextRef.current = new AudioContextConstructor();
+    }
+
+    return revealAudioContextRef.current;
+  }
+
+  function prepareRevealAudio() {
+    const audioContext = getRevealAudioContext();
+
+    if (!audioContext || audioContext.state === 'running') {
+      return;
+    }
+
+    void audioContext.resume();
+  }
+
+  function playRevealTone(
+    frequency: number,
+    durationMs: number,
+    gainValue: number,
+    delaySeconds = 0,
+  ) {
+    const audioContext = getRevealAudioContext();
+
+    if (!audioContext || audioContext.state !== 'running') {
+      return;
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const startAt = audioContext.currentTime + delaySeconds;
+    const stopAt = startAt + durationMs / 1000;
+
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(frequency, startAt);
+    gainNode.gain.setValueAtTime(0.0001, startAt);
+    gainNode.gain.linearRampToValueAtTime(gainValue, startAt + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.start(startAt);
+    oscillator.stop(stopAt);
+  }
+
+  function playSeatRevealStepSound(mode: SeatRevealMode) {
+    playRevealTone(mode === 'base-plan' ? 880 : 740, 50, 0.02);
+  }
+
+  function playSeatRevealCompleteSound(mode: SeatRevealMode) {
+    const firstTone = mode === 'base-plan' ? 784 : 659;
+    const secondTone = mode === 'base-plan' ? 1174 : 988;
+
+    playRevealTone(firstTone, 80, 0.022);
+    playRevealTone(secondTone, 120, 0.028, 0.08);
+  }
+
   const activeClassroom = data.classrooms.find((classroom) => classroom.id === data.activeClassroomId) ?? null;
   const basePlanEditModeActive = isBasePlanEditMode(appMode, activeClassroom?.id ?? null);
   const activeBasePlanEditSession =
@@ -407,13 +489,15 @@ export default function App() {
     !basePlanEditModeActive &&
     basePlanAvailable &&
     basePlanApplyArmedClassroomId === activeClassroom.id;
-  const basePlanRevealActive =
+  const seatRevealActive =
     !!activeClassroom &&
-    !!basePlanReveal &&
-    basePlanReveal.classroomId === activeClassroom.id;
+    !!seatReveal &&
+    seatReveal.classroomId === activeClassroom.id;
+  const basePlanReveal = seatReveal as SeatRevealState;
+  const basePlanRevealActive = seatRevealActive;
   const basePlanApplyDisabled =
-    basePlanEditModeActive || !basePlanAvailable || basePlanRevealActive;
-  const basePlanApplyHelperText = basePlanRevealActive
+    basePlanEditModeActive || !basePlanAvailable || seatRevealActive;
+  const basePlanApplyHelperText = seatRevealActive
     ? '기준안 공개 중에는 변경할 수 없습니다.'
     : !basePlanAvailable
       ? '저장된 기준안이 있어야 사용할 수 있습니다.'
@@ -421,13 +505,24 @@ export default function App() {
         ? '다음 자리 배정 시작에서 저장된 기준안을 그대로 공개합니다.'
         : '다음 자리 배정 시작에서 일반 랜덤 배정을 사용합니다.';
   const seatingActionHelperText =
-    basePlanRevealActive && basePlanReveal
+    seatRevealActive && seatReveal
       ? `기준안 공개 중 · ${basePlanReveal.visibleCount}/${basePlanReveal.orderedSeatIds.length} 자리를 순서대로 보여주고 있습니다.`
       : '자리 배정 시작을 누르면 현재 설정에 맞춰 배정합니다.';
+  const resolvedSeatingActionHelperText =
+    seatRevealActive && seatReveal?.mode === 'randomize'
+      ? `?먮━ 諛곗젙 ?좊땲硫붿씠??以?쨌 ${seatReveal.visibleCount}/${seatReveal.orderedSeatIds.length} ?먮━瑜??쒖꽌?濡?怨듦컻?섍퀬 ?덉뒿?덈떎.`
+      : seatingActionHelperText;
+  const randomizeButtonLabel =
+    seatRevealActive
+      ? seatReveal?.mode === 'base-plan'
+        ? '湲곗???怨듦컻 以?..'
+        : '?먮━ 諛곗젙 ?좊땲硫붿씠??以?..'
+      : '?먮━ 諛곗젙 ?쒖옉';
   const boardClassroom =
     activeClassroom && basePlanRevealActive && basePlanReveal
-      ? createProgressiveBasePlanClassroom(
+      ? createProgressiveRevealClassroom(
           activeClassroom,
+          basePlanReveal.layout,
           basePlanReveal.orderedSeatIds,
           basePlanReveal.visibleCount,
         )
@@ -489,35 +584,52 @@ export default function App() {
   }, [basePlanApplyArmedClassroomId, data.classrooms]);
 
   useEffect(() => {
-    if (!basePlanReveal) {
+    if (!seatReveal) {
       return;
     }
 
     const revealClassroom =
-      data.classrooms.find((classroom) => classroom.id === basePlanReveal.classroomId) ?? null;
+      data.classrooms.find((classroom) => classroom.id === seatReveal.classroomId) ?? null;
 
-    if (!revealClassroom || !hasAssignedSeatAssignments(revealClassroom.basePlan.seats)) {
-      setBasePlanReveal(null);
-      setBasePlanApplyArmedClassroomId((current) =>
-        current === basePlanReveal.classroomId ? null : current,
-      );
+    if (
+      !revealClassroom ||
+      (seatReveal.mode === 'base-plan' && !hasAssignedSeatAssignments(revealClassroom.basePlan.seats))
+    ) {
+      setSeatReveal(null);
+
+      if (seatReveal.mode === 'base-plan') {
+        setBasePlanApplyArmedClassroomId((current) =>
+          current === seatReveal.classroomId ? null : current,
+        );
+      }
+
       return;
     }
 
-    if (basePlanReveal.visibleCount >= basePlanReveal.orderedSeatIds.length) {
-      updateClassroomById(basePlanReveal.classroomId, restoreBasePlanInClassroom);
-      setBasePlanApplyArmedClassroomId((current) =>
-        current === basePlanReveal.classroomId ? null : current,
+    if (seatReveal.visibleCount >= seatReveal.orderedSeatIds.length) {
+      updateClassroomById(seatReveal.classroomId, (classroom) =>
+        applyLayoutToClassroom(classroom, seatReveal.layout),
       );
+
+      if (seatReveal.mode === 'base-plan') {
+        setBasePlanApplyArmedClassroomId((current) =>
+          current === seatReveal.classroomId ? null : current,
+        );
+        setRandomSummary(null);
+      }
+
       setSelectedStudentIds([]);
-      setRandomSummary(null);
-      setBasePlanReveal(null);
+      setSelectedSeatId(null);
+      playSeatRevealCompleteSound(seatReveal.mode);
+      setSeatReveal(null);
       return;
     }
+
+    playSeatRevealStepSound(seatReveal.mode);
 
     const timeoutId = window.setTimeout(() => {
-      setBasePlanReveal((current) =>
-        current && current.classroomId === basePlanReveal.classroomId
+      setSeatReveal((current) =>
+        current && current.classroomId === seatReveal.classroomId
           ? {
               ...current,
               visibleCount: Math.min(current.visibleCount + 1, current.orderedSeatIds.length),
@@ -529,7 +641,7 @@ export default function App() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [basePlanReveal, data.classrooms]);
+  }, [seatReveal, data.classrooms]);
 
   function updateClassroomById(
     classroomId: string,
@@ -856,21 +968,67 @@ export default function App() {
     setRandomSummary(null);
   }
 
+  function startSeatReveal(layout: BasePlan, mode: SeatRevealMode) {
+    if (!activeClassroom) {
+      return;
+    }
+
+    const orderedSeatIds = getOrderedRevealSeatIds(layout.seats);
+
+    if (orderedSeatIds.length === 0) {
+      updateActiveClassroom((classroom) => applyLayoutToClassroom(classroom, layout));
+
+      if (mode === 'base-plan') {
+        setBasePlanApplyArmedClassroomId(null);
+      }
+
+      return;
+    }
+
+    prepareRevealAudio();
+    setSeatReveal({
+      classroomId: activeClassroom.id,
+      orderedSeatIds,
+      visibleCount: 1,
+      mode,
+      layout,
+    });
+  }
+
   function applyRandomize(
     classroomToRandomize: Classroom,
-    applyRandomizedSeats: (classroom: Classroom, seats: Classroom['seats']) => Classroom = setClassroomSeats,
+    options?: {
+      animateResult?: boolean;
+      applyRandomizedSeats?: (classroom: Classroom, seats: Classroom['seats']) => Classroom;
+    },
   ) {
     startTransition(() => {
       const result = randomizeSeats(classroomToRandomize);
-
-      updateActiveClassroom((classroom) => applyRandomizedSeats(classroom, result.seats));
-      setRandomSummary({
+      const randomizeSummary: RandomSummary = {
         conflicts: result.conflicts,
         genderMisses: result.genderMisses,
         unplacedStudents: result.unplacedStudents,
-      });
+      };
+
+      if (options?.animateResult) {
+        startSeatReveal(
+          {
+            seats: result.seats,
+            groups: classroomToRandomize.groups,
+            layoutConfig: classroomToRandomize.layoutConfig,
+          },
+          'randomize',
+        );
+      } else {
+        const applyRandomizedSeats = options?.applyRandomizedSeats ?? setClassroomSeats;
+
+        updateActiveClassroom((classroom) => applyRandomizedSeats(classroom, result.seats));
+      }
+
+      setRandomSummary(randomizeSummary);
     });
     setSelectedStudentIds([]);
+    setSelectedSeatId(null);
   }
 
   function handleRandomize() {
@@ -889,24 +1047,13 @@ export default function App() {
 
     if (basePlanApplyArmed) {
       setSelectedStudentIds([]);
+      setSelectedSeatId(null);
       setRandomSummary(null);
-      const orderedSeatIds = getBasePlanRevealSeatIds(activeClassroom.basePlan.seats);
-
-      if (orderedSeatIds.length === 0) {
-        updateActiveClassroom(restoreBasePlanInClassroom);
-        setBasePlanApplyArmedClassroomId(null);
-        return;
-      }
-
-      setBasePlanReveal({
-        classroomId: activeClassroom.id,
-        orderedSeatIds,
-        visibleCount: 1,
-      });
+      startSeatReveal(activeClassroom.basePlan, 'base-plan');
       return;
     }
 
-    applyRandomize(activeClassroom);
+    applyRandomize(activeClassroom, { animateResult: true });
   }
 
   function handleRandomizeAllSeats() {
@@ -1570,9 +1717,9 @@ export default function App() {
                             onClick={handleRandomize}
                             disabled={basePlanRevealActive}
                           >
-                            {basePlanRevealActive ? '기준안 공개 중...' : '자리 배정 시작'}
+                            {randomizeButtonLabel}
                           </button>
-                          <p className="helper-text">{seatingActionHelperText}</p>
+                          <p className="helper-text">{resolvedSeatingActionHelperText}</p>
                         </>
                       )}
                       {randomSummary ? (
