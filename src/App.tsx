@@ -56,6 +56,7 @@ import {
 import type {
   AppData,
   BasePlan,
+  BoardLayoutMode,
   Classroom,
   DeskVariant,
   GenderMode,
@@ -76,6 +77,11 @@ const GENDER_MODE_LABELS: Record<GenderMode, string> = {
   random: '랜덤',
   same: '동성 우선',
   mixed: '이성 우선',
+};
+
+const BOARD_LAYOUT_MODE_LABELS: Record<BoardLayoutMode, string> = {
+  classic: '기본',
+  tv: 'TV 크게',
 };
 
 const PRINT_MARGIN_MM = 8;
@@ -610,6 +616,8 @@ export default function App() {
           basePlanReveal.visibleCount,
         )
       : activeClassroom;
+  const boardLayoutMode = activeClassroom?.boardLayoutMode ?? 'classic';
+  const tvBoardLayout = boardLayoutMode === 'tv';
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const boardInteractionEnabled = !basePlanRevealActive;
   const layoutBounds = boardClassroom ? getVisibleLayoutBounds(boardClassroom, viewMode) : null;
@@ -1309,6 +1317,14 @@ export default function App() {
     }));
   }
 
+  function handleBoardLayoutModeChange(nextMode: BoardLayoutMode) {
+    updateActiveClassroom((classroom) => ({
+      ...classroom,
+      boardLayoutMode: nextMode,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
   function handleGenderModeChange(nextMode: GenderMode) {
     updateActiveClassroom((classroom) => ({
       ...classroom,
@@ -1556,6 +1572,23 @@ export default function App() {
                     학생 관점
                   </button>
                 </div>
+                <div className="field print-hidden board-layout-field">
+                  <span>화면 레이아웃</span>
+                  <div className="segment-control board-layout-control">
+                    {(Object.entries(BOARD_LAYOUT_MODE_LABELS) as Array<
+                      [BoardLayoutMode, string]
+                    >).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        className={boardLayoutMode === mode ? 'mode-button active' : 'mode-button'}
+                        type="button"
+                        onClick={() => handleBoardLayoutModeChange(mode)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="button-row print-hidden">
                   {!basePlanEditModeActive ? (
                     <button className="secondary-button" type="button" onClick={handleSaveSnapshot}>
@@ -1585,14 +1618,17 @@ export default function App() {
 
             <section className="workspace-grid">
               <section className="canvas-section">
-                <div ref={boardShellRef} className="board-shell">
+                <div
+                  ref={boardShellRef}
+                  className={`board-shell ${tvBoardLayout ? 'tv-readable' : ''}`}
+                >
                   <div className="board-stage" style={{ height: scaledBoardHeight }}>
                     <div
                       className="board-stage-inner"
                       style={{ width: scaledBoardWidth, height: scaledBoardHeight }}
                     >
                       <div
-                        className="board-canvas"
+                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''}`}
                         style={{
                           width: renderCanvasWidth,
                           height: renderCanvasHeight,
@@ -1638,8 +1674,8 @@ export default function App() {
                                 top: groupFrame.top,
                                 width: maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
                                 height: maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
-                                borderColor: group.color,
-                                backgroundColor: `${group.color}22`,
+                                borderColor: tvBoardLayout ? '#1f2933' : group.color,
+                                backgroundColor: tvBoardLayout ? 'transparent' : `${group.color}22`,
                               }}
                             >
                               <span className="group-badge">{group.label}</span>
@@ -1664,6 +1700,19 @@ export default function App() {
                             renderCanvasHeight,
                             viewMode,
                           );
+                          const seatMetaText = student
+                            ? tvBoardLayout
+                              ? null
+                              : `${student.number ? `${student.number}번` : '번호 없음'} · ${
+                                  student.gender === 'male'
+                                    ? '남'
+                                    : student.gender === 'female'
+                                      ? '여'
+                                      : '성별 미입력'
+                                }`
+                            : tvBoardLayout
+                              ? null
+                              : '미배치';
 
                           return (
                             <div
@@ -1699,17 +1748,7 @@ export default function App() {
                                   </button>
                                 ) : null}
                                 <strong>{student?.name || '빈자리'}</strong>
-                                <span className="seat-meta">
-                                  {student
-                                    ? `${student.number ? `${student.number}번` : '번호 없음'} · ${
-                                        student.gender === 'male'
-                                          ? '남'
-                                          : student.gender === 'female'
-                                            ? '여'
-                                            : '성별 미입력'
-                                      }`
-                                    : '미배치'}
-                                </span>
+                                {seatMetaText ? <span className="seat-meta">{seatMetaText}</span> : null}
                               </div>
                             </div>
                           );

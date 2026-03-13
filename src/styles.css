@@ -491,6 +491,14 @@ textarea {
   white-space: nowrap;
 }
 
+.board-layout-field {
+  gap: 8px;
+}
+
+.board-layout-control {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .base-plan-arm-control {
   display: flex;
   flex-direction: column;
@@ -718,6 +726,11 @@ textarea {
   padding: 6px;
 }
 
+.board-shell.tv-readable {
+  border-color: rgba(17, 24, 32, 0.18);
+  background: #dfe5ea;
+}
+
 .board-stage {
   display: flex;
   justify-content: center;
@@ -758,6 +771,10 @@ textarea {
     linear-gradient(180deg, #f6f5ef 0%, #ecf0f4 100%);
 }
 
+.board-canvas.tv-readable {
+  background: #f8fafc;
+}
+
 .board-label,
 .seat-group-outline,
 .seat-card {
@@ -780,10 +797,25 @@ textarea {
   bottom: 18px;
 }
 
+.board-canvas.tv-readable .board-label {
+  padding: 10px 18px;
+  background: #111820;
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .seat-group-outline {
   border: 2px dashed;
   border-radius: 22px;
   pointer-events: none;
+}
+
+.board-canvas.tv-readable .seat-group-outline {
+  border-width: 3px;
+  border-style: solid;
+  border-radius: 24px;
 }
 
 .group-badge {
@@ -800,6 +832,16 @@ textarea {
   pointer-events: none;
 }
 
+.board-canvas.tv-readable .group-badge {
+  top: -14px;
+  left: 16px;
+  padding: 5px 10px;
+  background: #111820;
+  color: #ffffff;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
 .seat-card {
   width: 136px;
   height: 70px;
@@ -811,6 +853,14 @@ textarea {
   box-shadow: 0 8px 16px rgba(32, 48, 61, 0.08);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.board-canvas.tv-readable .seat-card {
+  border-width: 3px;
+  border-color: #1d2a33;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: none;
 }
 
 .seat-card.clickable {
@@ -826,11 +876,19 @@ textarea {
   border-color: #1d8a65;
 }
 
+.board-canvas.tv-readable .seat-card.fixed {
+  border-color: #0f6b4e;
+}
+
 .seat-content {
   position: relative;
   height: 100%;
   padding: 6px 9px 5px;
   text-align: center;
+}
+
+.board-canvas.tv-readable .seat-content {
+  padding: 8px 10px 6px;
 }
 
 .seat-content strong {
@@ -843,6 +901,15 @@ textarea {
   text-align: center;
   transform: translate(-50%, -58%);
   width: calc(100% - 22px);
+}
+
+.board-canvas.tv-readable .seat-content strong {
+  width: calc(100% - 14px);
+  font-size: 1.22rem;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #0f1720;
+  transform: translate(-50%, -52%);
 }
 
 .seat-pin-button {
@@ -905,6 +972,10 @@ textarea {
   background: transparent;
   font-size: 0.64rem;
   width: calc(100% - 18px);
+}
+
+.board-canvas.tv-readable .seat-meta {
+  display: none;
 }
 
 .inspector {

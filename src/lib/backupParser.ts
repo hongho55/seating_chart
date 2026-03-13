@@ -5,6 +5,7 @@ import { hasAssignedSeatAssignments } from './seatAssignments';
 import type {
   AppData,
   BasePlan,
+  BoardLayoutMode,
   Classroom,
   ConflictRule,
   DeskVariant,
@@ -49,6 +50,7 @@ const VALID_VARIANTS: DeskVariant[] = [
   'group6-u',
 ];
 const VALID_VIEW_MODES: ViewMode[] = ['teacher', 'student'];
+const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'tv'];
 const VALID_GENDER_MODES: GenderMode[] = ['random', 'same', 'mixed'];
 
 function now(): string {
@@ -502,12 +504,18 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   }
 
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
+  const boardLayoutMode =
+    value.boardLayoutMode == null ? 'classic' : value.boardLayoutMode;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
   const randomSettings = value.randomSettings == null ? { genderMode: 'random' } : value.randomSettings;
   const hasSavedBasePlan = inferHasSavedBasePlan(value, basePlan.value);
 
   if (!isString(boardLabel)) {
     return { ok: false, error: `classrooms[${index}].boardLabel은 문자열이어야 합니다.` };
+  }
+
+  if (!isOneOf(boardLayoutMode, VALID_BOARD_LAYOUT_MODES)) {
+    return { ok: false, error: `classrooms[${index}].boardLayoutMode 값이 올바르지 않습니다.` };
   }
 
   if (!isOneOf(lastViewMode, VALID_VIEW_MODES)) {
@@ -534,6 +542,7 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
       rules: rules.value,
       snapshots: snapshots.value,
       boardLabel,
+      boardLayoutMode,
       randomSettings: {
         genderMode: randomSettings.genderMode,
       },

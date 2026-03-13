@@ -46,6 +46,7 @@ export function createEmptyClassroom(input?: {
     rules: [],
     snapshots: [],
     boardLabel: '칠판',
+    boardLayoutMode: 'classic',
     randomSettings: {
       genderMode: 'random',
     },
