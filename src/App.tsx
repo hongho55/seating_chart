@@ -59,6 +59,7 @@ import type {
   BoardLayoutMode,
   Classroom,
   DeskVariant,
+  Gender,
   GenderMode,
   Seat,
   SeatPreset,
@@ -256,6 +257,30 @@ function getStudentName(classroom: Classroom, studentId: string | null): string 
   }
 
   return classroom.students.find((student) => student.id === studentId)?.name ?? '';
+}
+
+function getGenderLabel(gender: Gender): string {
+  if (gender === 'male') {
+    return '남';
+  }
+
+  if (gender === 'female') {
+    return '여';
+  }
+
+  return '미입력';
+}
+
+function getGenderToneClass(gender: Gender | null | undefined): string {
+  if (gender === 'male') {
+    return 'gender-male';
+  }
+
+  if (gender === 'female') {
+    return 'gender-female';
+  }
+
+  return 'gender-unknown';
 }
 
 function getGroupLabelForSeat(classroom: Classroom, seat: Seat | null): string {
@@ -1770,6 +1795,7 @@ export default function App() {
                           const student = boardClassroom!.students.find(
                             (candidate) => candidate.id === seat.assignedStudentId,
                           );
+                          const genderToneClass = getGenderToneClass(student?.gender);
                           const seatSelected =
                             boardInteractionEnabled &&
                             (selectedSeatId === seat.id ||
@@ -1786,13 +1812,7 @@ export default function App() {
                           const seatMetaText = student
                             ? tvBoardLayout
                               ? null
-                              : `${student.number ? `${student.number}번` : '번호 없음'} · ${
-                                  student.gender === 'male'
-                                    ? '남'
-                                    : student.gender === 'female'
-                                      ? '여'
-                                      : '성별 미입력'
-                                }`
+                              : `${student.number ? `${student.number}번` : '번호 없음'} · ${getGenderLabel(student.gender)}`
                             : tvBoardLayout
                               ? null
                               : '미배치';
@@ -1800,7 +1820,7 @@ export default function App() {
                           return (
                             <div
                               key={seat.id}
-                              className={`seat-card ${student ? 'occupied' : 'empty'} ${seat.fixed ? 'fixed' : ''} ${boardInteractionEnabled ? 'clickable' : ''} ${seatSelected ? 'active' : ''}`}
+                              className={`seat-card ${student ? 'occupied' : 'empty'} ${student ? genderToneClass : ''} ${seat.fixed ? 'fixed' : ''} ${boardInteractionEnabled ? 'clickable' : ''} ${seatSelected ? 'active' : ''}`}
                               style={{ left: seatFrame.left, top: seatFrame.top }}
                               onClick={() => handleSeatSelect(seat)}
                               role={boardInteractionEnabled ? 'button' : undefined}
@@ -1831,7 +1851,11 @@ export default function App() {
                                   </button>
                                 ) : null}
                                 <strong>{student?.name || '빈자리'}</strong>
-                                {seatMetaText ? <span className="seat-meta">{seatMetaText}</span> : null}
+                                {seatMetaText ? (
+                                  <span className={`seat-meta ${student ? genderToneClass : ''}`}>
+                                    {seatMetaText}
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                           );
@@ -2030,7 +2054,7 @@ export default function App() {
                           return (
                             <div key={student.id} className="student-row">
                               <button
-                                className={`student-chip ${selectedStudentIds.includes(student.id) ? 'active' : ''}`}
+                                className={`student-chip ${getGenderToneClass(student.gender)} ${selectedStudentIds.includes(student.id) ? 'active' : ''}`}
                                 type="button"
                                 onClick={() => handleStudentSelect(student.id)}
                               >
@@ -2039,12 +2063,8 @@ export default function App() {
                                     {student.number ? `${student.number}. ` : ''}
                                     {student.name}
                                   </strong>
-                                  <span>
-                                    {student.gender === 'male'
-                                      ? '남'
-                                      : student.gender === 'female'
-                                        ? '여'
-                                        : '미입력'}
+                                  <span className={getGenderToneClass(student.gender)}>
+                                    {getGenderLabel(student.gender)}
                                     {' · '}
                                     {getGroupLabelForSeat(activeClassroom, assignedSeat ?? null)}
                                   </span>
