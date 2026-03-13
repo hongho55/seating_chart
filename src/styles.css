@@ -719,6 +719,7 @@ textarea {
 }
 
 .board-shell {
+  position: relative;
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(32, 48, 61, 0.08);
@@ -729,6 +730,53 @@ textarea {
 .board-shell.tv-readable {
   border-color: rgba(17, 24, 32, 0.18);
   background: #dfe5ea;
+}
+
+.board-shell.fullscreen-active {
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+  padding: 20px;
+  background: #e4eaef;
+}
+
+.board-shell.fullscreen-active.tv-readable {
+  background: #dfe6ec;
+}
+
+.board-shell.fullscreen-active .board-stage {
+  height: 100% !important;
+  align-items: center;
+}
+
+.board-presentation-overlay {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.board-presentation-overlay > * {
+  pointer-events: auto;
+}
+
+.board-presentation-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 32, 0.76);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .board-stage {
@@ -849,7 +897,6 @@ textarea {
   border: 2px solid rgba(32, 48, 61, 0.14);
   border-radius: 16px;
   background: #ffffff;
-  overflow: hidden;
   text-align: center;
   box-shadow: 0 8px 16px rgba(32, 48, 61, 0.08);
   user-select: none;

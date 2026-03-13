@@ -236,6 +236,16 @@ function isFlippedView(viewMode: ViewMode): boolean {
   return viewMode === 'teacher';
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT')
+  );
+}
+
 function classroomTitle(classroom: Classroom): string {
   return `${classroom.grade} ${classroom.className} · ${classroom.subjectRoomName}`;
 }
@@ -452,6 +462,7 @@ export default function App() {
   const [classroomMenuOpen, setClassroomMenuOpen] = useState(false);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [boardScale, setBoardScale] = useState(1);
+  const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
   const boardShellRef = useRef<HTMLDivElement | null>(null);
   const classroomPickerRef = useRef<HTMLDivElement | null>(null);
   const createPanelRef = useRef<HTMLDivElement | null>(null);
@@ -564,6 +575,21 @@ export default function App() {
 
     playRevealTone(firstTone, 80, 0.022);
     playRevealTone(secondTone, 120, 0.028, 0.08);
+  }
+
+  async function toggleBoardFullscreen() {
+    const shell = boardShellRef.current;
+
+    if (!shell) {
+      return;
+    }
+
+    if (document.fullscreenElement === shell) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await shell.requestFullscreen();
   }
 
   const activeClassroom = data.classrooms.find((classroom) => classroom.id === data.activeClassroomId) ?? null;
@@ -1344,8 +1370,13 @@ export default function App() {
     }
 
     const updateScale = () => {
-      const availableWidth = Math.max(shell.clientWidth - 12, 1);
-      const nextScale = Math.min(1, availableWidth / renderCanvasWidth);
+      const availableWidth = Math.max(shell.clientWidth - (isBoardFullscreen ? 40 : 12), 1);
+      const availableHeight = Math.max(shell.clientHeight - (isBoardFullscreen ? 40 : 12), 1);
+      const widthScale = availableWidth / renderCanvasWidth;
+      const heightScale = availableHeight / renderCanvasHeight;
+      const nextScale = isBoardFullscreen
+        ? Math.min(2.2, Math.max(1, Math.min(widthScale, heightScale)))
+        : Math.min(1, widthScale);
       setBoardScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
     };
 
@@ -1360,7 +1391,42 @@ export default function App() {
     return () => {
       observer.disconnect();
     };
-  }, [renderCanvasHeight, renderCanvasWidth]);
+  }, [isBoardFullscreen, renderCanvasHeight, renderCanvasWidth]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const shell = boardShellRef.current;
+      setIsBoardFullscreen(Boolean(shell && document.fullscreenElement === shell));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    handleFullscreenChange();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isEditableTarget(event.target) || !activeClassroom) {
+        return;
+      }
+
+      if (event.key.toLowerCase() !== 'f') {
+        return;
+      }
+
+      event.preventDefault();
+      void toggleBoardFullscreen();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeClassroom]);
 
   useEffect(() => {
     if (!classroomMenuOpen) {
@@ -1590,6 +1656,11 @@ export default function App() {
                   </div>
                 </div>
                 <div className="button-row print-hidden">
+                  <button className="secondary-button" type="button" onClick={() => void toggleBoardFullscreen()}>
+                    {isBoardFullscreen ? '전체화면 종료' : '전체화면 보기'}
+                  </button>
+                </div>
+                <div className="button-row print-hidden">
                   {!basePlanEditModeActive ? (
                     <button className="secondary-button" type="button" onClick={handleSaveSnapshot}>
                       현재 배치 저장
@@ -1620,8 +1691,20 @@ export default function App() {
               <section className="canvas-section">
                 <div
                   ref={boardShellRef}
-                  className={`board-shell ${tvBoardLayout ? 'tv-readable' : ''}`}
+                  className={`board-shell ${tvBoardLayout ? 'tv-readable' : ''} ${isBoardFullscreen ? 'fullscreen-active' : ''}`}
                 >
+                  {isBoardFullscreen ? (
+                    <div className="board-presentation-overlay print-hidden">
+                      <span className="board-presentation-hint">F / Esc</span>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => void toggleBoardFullscreen()}
+                      >
+                        전체화면 종료
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="board-stage" style={{ height: scaledBoardHeight }}>
                     <div
                       className="board-stage-inner"
