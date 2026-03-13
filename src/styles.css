@@ -849,6 +849,7 @@ textarea {
   border: 2px solid rgba(32, 48, 61, 0.14);
   border-radius: 16px;
   background: #ffffff;
+  overflow: hidden;
   text-align: center;
   box-shadow: 0 8px 16px rgba(32, 48, 61, 0.08);
   user-select: none;
@@ -856,11 +857,22 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card {
-  border-width: 3px;
-  border-color: #1d2a33;
+  border-width: 1px;
+  border-color: rgba(17, 24, 32, 0.14);
   border-radius: 18px;
-  background: #ffffff;
-  box-shadow: none;
+  background:
+    linear-gradient(135deg, rgba(244, 201, 93, 0.2) 0%, rgba(255, 255, 255, 0.96) 28%, #ffffff 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
+    0 10px 24px rgba(15, 23, 32, 0.08);
+}
+
+.board-canvas.tv-readable .seat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 8px;
+  background: linear-gradient(90deg, #f4c95d 0%, #f6dfa2 100%);
 }
 
 .seat-card.clickable {
@@ -872,12 +884,24 @@ textarea {
   box-shadow: 0 0 0 4px rgba(244, 201, 93, 0.2);
 }
 
+.board-canvas.tv-readable .seat-card.active {
+  border-color: rgba(244, 201, 93, 0.72);
+  box-shadow:
+    0 0 0 3px rgba(244, 201, 93, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
+    0 12px 26px rgba(15, 23, 32, 0.1);
+}
+
 .seat-card.fixed {
   border-color: #1d8a65;
 }
 
 .board-canvas.tv-readable .seat-card.fixed {
-  border-color: #0f6b4e;
+  border-color: rgba(15, 107, 78, 0.28);
+}
+
+.board-canvas.tv-readable .seat-card.fixed::before {
+  background: linear-gradient(90deg, #1d8a65 0%, #6fd2af 100%);
 }
 
 .seat-content {
