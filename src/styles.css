@@ -857,22 +857,16 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card {
-  border-width: 1px;
-  border-color: rgba(17, 24, 32, 0.14);
+  border: 0;
   border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(244, 201, 93, 0.2) 0%, rgba(255, 255, 255, 0.96) 28%, #ffffff 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
-    0 10px 24px rgba(15, 23, 32, 0.08);
+  background: #fffdf8;
+  box-shadow: 0 10px 22px rgba(15, 23, 32, 0.08);
 }
 
-.board-canvas.tv-readable .seat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 8px;
-  background: linear-gradient(90deg, #f4c95d 0%, #f6dfa2 100%);
+.board-canvas.tv-readable .seat-card.empty {
+  background: #eef2f5;
+  box-shadow: none;
+  opacity: 0.54;
 }
 
 .seat-card.clickable {
@@ -885,10 +879,8 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card.active {
-  border-color: rgba(244, 201, 93, 0.72);
   box-shadow:
     0 0 0 3px rgba(244, 201, 93, 0.24),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.82),
     0 12px 26px rgba(15, 23, 32, 0.1);
 }
 
@@ -897,11 +889,10 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card.fixed {
-  border-color: rgba(15, 107, 78, 0.28);
-}
-
-.board-canvas.tv-readable .seat-card.fixed::before {
-  background: linear-gradient(90deg, #1d8a65 0%, #6fd2af 100%);
+  background: #f3fbf8;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 32, 0.08),
+    0 6px 18px rgba(29, 138, 101, 0.12);
 }
 
 .seat-content {
@@ -934,6 +925,11 @@ textarea {
   line-height: 1.05;
   color: #0f1720;
   transform: translate(-50%, -52%);
+}
+
+.board-canvas.tv-readable .seat-card.empty strong {
+  color: #8a97a1;
+  font-weight: 700;
 }
 
 .seat-pin-button {

@@ -1717,7 +1717,7 @@ export default function App() {
                           return (
                             <div
                               key={seat.id}
-                              className={`seat-card ${seat.fixed ? 'fixed' : ''} ${boardInteractionEnabled ? 'clickable' : ''} ${seatSelected ? 'active' : ''}`}
+                              className={`seat-card ${student ? 'occupied' : 'empty'} ${seat.fixed ? 'fixed' : ''} ${boardInteractionEnabled ? 'clickable' : ''} ${seatSelected ? 'active' : ''}`}
                               style={{ left: seatFrame.left, top: seatFrame.top }}
                               onClick={() => handleSeatSelect(seat)}
                               role={boardInteractionEnabled ? 'button' : undefined}
