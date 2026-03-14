@@ -9,6 +9,7 @@ import type {
   Classroom,
   ConflictRule,
   DeskVariant,
+  FocusFontPreset,
   Gender,
   GenderMode,
   LayoutPresetConfig,
@@ -51,6 +52,7 @@ const VALID_VARIANTS: DeskVariant[] = [
 ];
 const VALID_VIEW_MODES: ViewMode[] = ['teacher', 'student'];
 const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'focus', 'tv'];
+const VALID_FOCUS_FONT_PRESETS: FocusFontPreset[] = ['suit', 'wanted'];
 const VALID_GENDER_MODES: GenderMode[] = ['random', 'same', 'mixed'];
 
 function now(): string {
@@ -506,6 +508,8 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
   const boardLayoutMode =
     value.boardLayoutMode == null ? 'classic' : value.boardLayoutMode;
+  const focusFontPreset =
+    value.focusFontPreset == null ? 'suit' : value.focusFontPreset;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
   const randomSettings = value.randomSettings == null ? { genderMode: 'random' } : value.randomSettings;
   const hasSavedBasePlan = inferHasSavedBasePlan(value, basePlan.value);
@@ -516,6 +520,10 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
 
   if (!isOneOf(boardLayoutMode, VALID_BOARD_LAYOUT_MODES)) {
     return { ok: false, error: `classrooms[${index}].boardLayoutMode 값이 올바르지 않습니다.` };
+  }
+
+  if (!isOneOf(focusFontPreset, VALID_FOCUS_FONT_PRESETS)) {
+    return { ok: false, error: `classrooms[${index}].focusFontPreset 값이 올바르지 않습니다.` };
   }
 
   if (!isOneOf(lastViewMode, VALID_VIEW_MODES)) {
@@ -543,6 +551,7 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
       snapshots: snapshots.value,
       boardLabel,
       boardLayoutMode,
+      focusFontPreset,
       randomSettings: {
         genderMode: randomSettings.genderMode,
       },

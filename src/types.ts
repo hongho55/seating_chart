@@ -5,6 +5,7 @@ export type SeatPreset = 'single' | 'pair' | 'group4' | 'group6';
 export type ViewMode = 'teacher' | 'student';
 export type BoardLayoutMode = 'classic' | 'focus' | 'tv';
 export type GenderMode = 'random' | 'same' | 'mixed';
+export type FocusFontPreset = 'suit' | 'wanted';
 
 export type DeskVariant =
   | 'single'
@@ -90,6 +91,7 @@ export interface Classroom {
   snapshots: LayoutSnapshot[];
   boardLabel: string;
   boardLayoutMode: BoardLayoutMode;
+  focusFontPreset: FocusFontPreset;
   randomSettings: {
     genderMode: GenderMode;
   };

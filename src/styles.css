@@ -1,3 +1,5 @@
+@import url("https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css");
+
 :root {
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
   color: #20303d;
@@ -1173,6 +1175,24 @@ textarea {
   line-height: 1.08;
   letter-spacing: -0.02em;
   transform: translate(-50%, -50%);
+}
+
+.board-canvas.name-focus.focus-font-suit .seat-content strong {
+  font-family:
+    "SUIT Variable",
+    "Pretendard Variable",
+    "Pretendard",
+    "Noto Sans KR",
+    sans-serif;
+}
+
+.board-canvas.name-focus.focus-font-wanted .seat-content strong {
+  font-family:
+    "Wanted Sans Variable",
+    "Pretendard Variable",
+    "Pretendard",
+    "Noto Sans KR",
+    sans-serif;
 }
 
 .board-canvas.name-focus .seat-card.empty strong {

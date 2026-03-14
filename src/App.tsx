@@ -59,6 +59,7 @@ import type {
   BoardLayoutMode,
   Classroom,
   DeskVariant,
+  FocusFontPreset,
   Gender,
   GenderMode,
   Seat,
@@ -84,6 +85,11 @@ const BOARD_LAYOUT_MODE_LABELS: Record<BoardLayoutMode, string> = {
   classic: '기본',
   focus: '이름 크게',
   tv: 'TV 크게',
+};
+
+const FOCUS_FONT_LABELS: Record<FocusFontPreset, string> = {
+  suit: 'SUIT',
+  wanted: 'Wanted Sans',
 };
 
 const PRINT_MARGIN_MM = 8;
@@ -671,6 +677,7 @@ export default function App() {
   const boardLayoutMode = activeClassroom?.boardLayoutMode ?? 'classic';
   const tvBoardLayout = boardLayoutMode === 'tv';
   const focusBoardLayout = boardLayoutMode === 'focus';
+  const focusFontPreset = activeClassroom?.focusFontPreset ?? 'suit';
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const boardInteractionEnabled = !basePlanRevealActive;
   const layoutBounds = boardClassroom ? getVisibleLayoutBounds(boardClassroom, viewMode) : null;
@@ -1378,6 +1385,14 @@ export default function App() {
     }));
   }
 
+  function handleFocusFontPresetChange(nextPreset: FocusFontPreset) {
+    updateActiveClassroom((classroom) => ({
+      ...classroom,
+      focusFontPreset: nextPreset,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
   function handleGenderModeChange(nextMode: GenderMode) {
     updateActiveClassroom((classroom) => ({
       ...classroom,
@@ -1682,6 +1697,25 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+                {focusBoardLayout ? (
+                  <div className="field print-hidden board-layout-field">
+                    <span>이름 글꼴</span>
+                    <div className="segment-control board-layout-control">
+                      {(Object.entries(FOCUS_FONT_LABELS) as Array<[FocusFontPreset, string]>).map(
+                        ([preset, label]) => (
+                          <button
+                            key={preset}
+                            className={focusFontPreset === preset ? 'mode-button active' : 'mode-button'}
+                            type="button"
+                            onClick={() => handleFocusFontPresetChange(preset)}
+                          >
+                            {label}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="button-row print-hidden">
                   <button className="secondary-button" type="button" onClick={() => void toggleBoardFullscreen()}>
                     {isBoardFullscreen ? '전체화면 종료' : '전체화면 보기'}
@@ -1738,7 +1772,7 @@ export default function App() {
                       style={{ width: scaledBoardWidth, height: scaledBoardHeight }}
                     >
                       <div
-                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''} ${focusBoardLayout ? 'name-focus' : ''}`}
+                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''} ${focusBoardLayout ? 'name-focus' : ''} ${focusBoardLayout ? `focus-font-${focusFontPreset}` : ''}`}
                         style={{
                           width: renderCanvasWidth,
                           height: renderCanvasHeight,
