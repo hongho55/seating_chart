@@ -1759,10 +1759,10 @@ export default function App() {
                             return null;
                           }
 
-                          const hideTvOutline =
-                            tvBoardLayout && (group.preset === 'single' || group.preset === 'pair');
+                          const hideGroupOutline =
+                            group.preset === 'single' || group.preset === 'pair';
 
-                          if (hideTvOutline) {
+                          if (hideGroupOutline) {
                             return null;
                           }
 
