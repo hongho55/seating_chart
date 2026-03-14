@@ -1759,36 +1759,30 @@ export default function App() {
                             return null;
                           }
 
+                          const hideTvOutline =
+                            tvBoardLayout && (group.preset === 'single' || group.preset === 'pair');
+
+                          if (hideTvOutline) {
+                            return null;
+                          }
+
                           const minX = Math.min(...groupSeats.map((seat) => seat.x));
                           const minY = Math.min(...groupSeats.map((seat) => seat.y));
                           const maxX = Math.max(...groupSeats.map((seat) => seat.x));
                           const maxY = Math.max(...groupSeats.map((seat) => seat.y));
-                          const compactTvOutline =
-                            tvBoardLayout && (group.preset === 'single' || group.preset === 'pair');
-                          const groupOutlinePaddingX = compactTvOutline
-                            ? GROUP_OUTLINE_PADDING + 6
-                            : GROUP_OUTLINE_PADDING;
-                          const groupOutlinePaddingY = compactTvOutline
-                            ? Math.max(6, GROUP_OUTLINE_PADDING - 6)
-                            : GROUP_OUTLINE_PADDING;
                           const groupOutlineWidth =
-                            maxX - minX + SEAT_CARD_WIDTH + groupOutlinePaddingX * 2;
+                            maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2;
                           const groupOutlineHeight =
-                            maxY - minY + SEAT_CARD_HEIGHT + groupOutlinePaddingY * 2;
+                            maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2;
                           const groupFrame = flipFrame(
-                            minX - groupOutlinePaddingX + renderOffsetX,
-                            minY - groupOutlinePaddingY,
+                            minX - GROUP_OUTLINE_PADDING + renderOffsetX,
+                            minY - GROUP_OUTLINE_PADDING,
                             groupOutlineWidth,
                             groupOutlineHeight,
                             renderCanvasWidth,
                             renderCanvasHeight,
                             viewMode,
                           );
-                          const tvOutlineBorderColor = compactTvOutline
-                            ? 'rgba(31, 41, 51, 0.34)'
-                            : 'rgba(31, 41, 51, 0.52)';
-                          const showGroupBadge =
-                            !tvBoardLayout || (group.preset !== 'single' && group.preset !== 'pair');
 
                           return (
                             <div
@@ -1799,17 +1793,15 @@ export default function App() {
                                 top: groupFrame.top,
                                 width: groupOutlineWidth,
                                 height: groupOutlineHeight,
-                                borderColor: tvBoardLayout ? tvOutlineBorderColor : group.color,
+                                borderColor: tvBoardLayout ? 'rgba(31, 41, 51, 0.52)' : group.color,
                                 backgroundColor: tvBoardLayout ? 'transparent' : `${group.color}22`,
                               }}
                             >
-                              {showGroupBadge ? (
-                                <span
-                                  className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
-                                >
-                                  {group.label}
-                                </span>
-                              ) : null}
+                              <span
+                                className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
+                              >
+                                {group.label}
+                              </span>
                             </div>
                           );
                         })}
