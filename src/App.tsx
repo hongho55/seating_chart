@@ -108,6 +108,15 @@ type RandomSummary = {
   unplacedStudents: number;
 };
 
+function hasMatchingBasePlanLayout(classroom: Classroom): boolean {
+  return (
+    classroom.basePlan.layoutConfig.preset === classroom.layoutConfig.preset &&
+    classroom.basePlan.layoutConfig.variant === classroom.layoutConfig.variant &&
+    classroom.basePlan.layoutConfig.rows === classroom.layoutConfig.rows &&
+    classroom.basePlan.layoutConfig.cols === classroom.layoutConfig.cols
+  );
+}
+
 type SeatRevealMode = 'base-plan' | 'randomize';
 
 type SeatRevealState = {
@@ -934,7 +943,7 @@ export default function App() {
       liveLayout: createBasePlan(activeClassroom),
     });
 
-    if (hasUsableBasePlan(activeClassroom)) {
+    if (hasUsableBasePlan(activeClassroom) && hasMatchingBasePlanLayout(activeClassroom)) {
       updateActiveClassroom(restoreBasePlanInClassroom);
     }
 
