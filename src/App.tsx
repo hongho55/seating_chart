@@ -1763,30 +1763,49 @@ export default function App() {
                           const minY = Math.min(...groupSeats.map((seat) => seat.y));
                           const maxX = Math.max(...groupSeats.map((seat) => seat.x));
                           const maxY = Math.max(...groupSeats.map((seat) => seat.y));
+                          const compactTvOutline =
+                            tvBoardLayout && (group.preset === 'single' || group.preset === 'pair');
+                          const groupOutlinePaddingX = compactTvOutline
+                            ? GROUP_OUTLINE_PADDING + 6
+                            : GROUP_OUTLINE_PADDING;
+                          const groupOutlinePaddingY = compactTvOutline
+                            ? Math.max(6, GROUP_OUTLINE_PADDING - 6)
+                            : GROUP_OUTLINE_PADDING;
+                          const groupOutlineWidth =
+                            maxX - minX + SEAT_CARD_WIDTH + groupOutlinePaddingX * 2;
+                          const groupOutlineHeight =
+                            maxY - minY + SEAT_CARD_HEIGHT + groupOutlinePaddingY * 2;
                           const groupFrame = flipFrame(
-                            minX - GROUP_OUTLINE_PADDING + renderOffsetX,
-                            minY - GROUP_OUTLINE_PADDING,
-                            maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
-                            maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
+                            minX - groupOutlinePaddingX + renderOffsetX,
+                            minY - groupOutlinePaddingY,
+                            groupOutlineWidth,
+                            groupOutlineHeight,
                             renderCanvasWidth,
                             renderCanvasHeight,
                             viewMode,
                           );
+                          const tvOutlineBorderColor = compactTvOutline
+                            ? 'rgba(31, 41, 51, 0.34)'
+                            : 'rgba(31, 41, 51, 0.52)';
 
                           return (
                             <div
                               key={group.id}
-                              className="seat-group-outline"
+                              className={`seat-group-outline ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
                               style={{
                                 left: groupFrame.left,
                                 top: groupFrame.top,
-                                width: maxX - minX + SEAT_CARD_WIDTH + GROUP_OUTLINE_PADDING * 2,
-                                height: maxY - minY + SEAT_CARD_HEIGHT + GROUP_OUTLINE_PADDING * 2,
-                                borderColor: tvBoardLayout ? '#1f2933' : group.color,
+                                width: groupOutlineWidth,
+                                height: groupOutlineHeight,
+                                borderColor: tvBoardLayout ? tvOutlineBorderColor : group.color,
                                 backgroundColor: tvBoardLayout ? 'transparent' : `${group.color}22`,
                               }}
                             >
-                              <span className="group-badge">{group.label}</span>
+                              <span
+                                className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
+                              >
+                                {group.label}
+                              </span>
                             </div>
                           );
                         })}

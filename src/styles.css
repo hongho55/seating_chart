@@ -4,9 +4,18 @@
   --gender-male-accent: #7280c2;
   --gender-female-accent: #b48757;
   --gender-unknown-accent: #99a6af;
+  --tv-surface: #f5f7fa;
+  --tv-surface-strong: #ffffff;
+  --tv-ink: #0f1720;
+  --tv-muted: #5f6d78;
+  --tv-empty: #dbe3ea;
+  --tv-active: #f4c95d;
+  --tv-fixed: #158a63;
+  color-scheme: light;
   background:
-    radial-gradient(circle at top right, rgba(244, 201, 93, 0.25), transparent 30%),
-    linear-gradient(160deg, #f4f1e8 0%, #eef3f8 48%, #dde7ef 100%);
+    radial-gradient(circle at top right, rgba(244, 201, 93, 0.28), transparent 30%),
+    radial-gradient(circle at top left, rgba(102, 144, 190, 0.14), transparent 34%),
+    linear-gradient(160deg, #f2efe6 0%, #eaf0f6 46%, #d6e1eb 100%);
   line-height: 1.45;
   font-weight: 400;
 }
@@ -49,10 +58,13 @@ button {
 .inspector-section,
 .canvas-section,
 .topbar {
-  border: 1px solid rgba(32, 48, 61, 0.08);
+  border: 1px solid rgba(32, 48, 61, 0.09);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 18px 48px rgba(18, 38, 52, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.88));
+  box-shadow:
+    0 22px 54px rgba(18, 38, 52, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(20px);
 }
 
@@ -103,15 +115,16 @@ button {
 .topbar p,
 .empty-state p {
   margin: 4px 0 0;
-  color: #5e7280;
+  color: #5a6d79;
+  max-width: 62ch;
 }
 
 .mini-title,
 .eyebrow {
-  color: #6f7b81;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  color: #61737e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -724,10 +737,13 @@ textarea {
   flex-shrink: 0;
   height: 40px;
   padding: 0 14px;
+  border: 1px solid rgba(212, 162, 26, 0.24);
   border-radius: 999px;
-  background: rgba(244, 201, 93, 0.2);
-  color: #7a5b04;
+  background: linear-gradient(180deg, rgba(253, 244, 214, 0.95), rgba(248, 227, 160, 0.86));
+  color: #6b5106;
   font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 
@@ -744,7 +760,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px;
+  padding: 10px 16px;
 }
 
 .helper-text {
@@ -762,14 +778,23 @@ textarea {
   position: relative;
   overflow: hidden;
   border-radius: 22px;
-  border: 1px solid rgba(32, 48, 61, 0.08);
-  background: #eef2f4;
+  border: 1px solid rgba(24, 34, 44, 0.08);
+  background: linear-gradient(180deg, #edf1f5 0%, #e1e8ef 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.64),
+    0 16px 34px rgba(17, 24, 32, 0.08);
   padding: 6px;
 }
 
 .board-shell.tv-readable {
-  border-color: rgba(17, 24, 32, 0.18);
-  background: #dfe5ea;
+  padding: 4px 14px 4px;
+  border-color: rgba(17, 24, 32, 0.24);
+  background:
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.1), transparent 36%),
+    linear-gradient(180deg, #253140 0%, #1b2530 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 44px rgba(15, 23, 32, 0.18);
 }
 
 .board-shell.fullscreen-active {
@@ -782,7 +807,10 @@ textarea {
 }
 
 .board-shell.fullscreen-active.tv-readable {
-  background: #dfe6ec;
+  padding: 12px 28px;
+  background:
+    radial-gradient(circle at top center, rgba(255, 255, 255, 0.1), transparent 36%),
+    linear-gradient(180deg, #253140 0%, #1b2530 100%);
 }
 
 .board-shell.fullscreen-active .board-stage {
@@ -860,7 +888,24 @@ textarea {
 }
 
 .board-canvas.tv-readable {
-  background: #f8fafc;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 250, 0.95)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(36, 49, 62, 0.04),
+      rgba(36, 49, 62, 0.04) 1px,
+      transparent 1px,
+      transparent 78px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(36, 49, 62, 0.04),
+      rgba(36, 49, 62, 0.04) 1px,
+      transparent 1px,
+      transparent 78px
+    ),
+    linear-gradient(180deg, #f8fafc 0%, #eef3f7 100%);
 }
 
 .board-label,
@@ -887,11 +932,12 @@ textarea {
 
 .board-canvas.tv-readable .board-label {
   padding: 10px 18px;
-  background: #111820;
+  background: linear-gradient(180deg, #111820 0%, #1c2732 100%);
   color: #ffffff;
   font-size: 1.02rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  box-shadow: 0 10px 24px rgba(15, 23, 32, 0.18);
 }
 
 .seat-group-outline {
@@ -901,9 +947,21 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-group-outline {
-  border-width: 3px;
+  border-width: 2px;
   border-style: solid;
   border-radius: 24px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.board-canvas.tv-readable .seat-group-outline.preset-group4,
+.board-canvas.tv-readable .seat-group-outline.preset-group6 {
+  border-width: 3px;
+  border-radius: 26px;
+}
+
+.board-canvas.tv-readable .seat-group-outline.preset-single,
+.board-canvas.tv-readable .seat-group-outline.preset-pair {
+  border-radius: 20px;
 }
 
 .group-badge {
@@ -923,11 +981,24 @@ textarea {
 .board-canvas.tv-readable .group-badge {
   top: -14px;
   left: 16px;
-  padding: 5px 10px;
-  background: #111820;
+  padding: 6px 12px;
+  background: linear-gradient(180deg, #111820 0%, #253140 100%);
   color: #ffffff;
-  font-size: 0.78rem;
-  letter-spacing: 0.03em;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 8px 20px rgba(15, 23, 32, 0.16);
+}
+
+.board-canvas.tv-readable .group-badge.preset-single,
+.board-canvas.tv-readable .group-badge.preset-pair {
+  top: -12px;
+  left: 12px;
+  padding: 4px 9px;
+  background: rgba(17, 24, 32, 0.76);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 6px 14px rgba(15, 23, 32, 0.12);
 }
 
 .seat-card {
@@ -942,6 +1013,11 @@ textarea {
   box-shadow: 0 8px 16px rgba(32, 48, 61, 0.08);
   user-select: none;
   -webkit-user-select: none;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease;
 }
 
 .seat-card::before {
@@ -981,28 +1057,32 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card {
-  border: 0;
+  border: 1px solid rgba(20, 31, 43, 0.08);
   border-radius: 18px;
-  background: #fffdf8;
-  box-shadow: 0 10px 22px rgba(15, 23, 32, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  box-shadow:
+    0 14px 28px rgba(15, 23, 32, 0.12),
+    0 3px 8px rgba(15, 23, 32, 0.06);
 }
 
 .board-canvas.tv-readable .seat-card.empty {
-  background: #eef2f5;
-  box-shadow: none;
-  opacity: 0.54;
+  border-style: solid;
+  border-color: rgba(90, 109, 121, 0.18);
+  background: linear-gradient(180deg, #eef3f6 0%, #e2e9ee 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  opacity: 0.88;
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-male {
-  background: #fffdf8;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fb 100%);
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-female {
-  background: #fffdf8;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fb 100%);
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-unknown {
-  background: #fffdf8;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fb 100%);
 }
 
 .seat-card.clickable {
@@ -1015,9 +1095,12 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card.active {
+  border-color: rgba(244, 201, 93, 0.68);
+  background: linear-gradient(180deg, #fffaf0 0%, #fff2cb 100%);
   box-shadow:
-    0 0 0 3px rgba(244, 201, 93, 0.24),
-    0 12px 26px rgba(15, 23, 32, 0.1);
+    0 0 0 4px rgba(244, 201, 93, 0.28),
+    0 16px 30px rgba(15, 23, 32, 0.18);
+  transform: translateY(-1px);
 }
 
 .seat-card.fixed {
@@ -1025,10 +1108,37 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card.fixed {
-  background: #f3fbf8;
+  border-color: rgba(29, 138, 101, 0.34);
+  background: linear-gradient(180deg, #f4fcf8 0%, #ddf4e8 100%);
   box-shadow:
-    0 10px 24px rgba(15, 23, 32, 0.08),
-    0 6px 18px rgba(29, 138, 101, 0.12);
+    0 14px 28px rgba(15, 23, 32, 0.14),
+    0 0 0 2px rgba(29, 138, 101, 0.12);
+}
+
+.board-canvas.tv-readable .seat-card.fixed::after {
+  content: "고정";
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(20, 113, 83, 0.12);
+  color: #0f6b4e;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.board-canvas.tv-readable .seat-card.empty::after {
+  content: "비어 있음";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #6b7c88;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .seat-content {
@@ -1039,7 +1149,7 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-content {
-  padding: 8px 10px 6px;
+  padding: 8px 10px 7px;
 }
 
 .seat-content strong {
@@ -1056,16 +1166,24 @@ textarea {
 
 .board-canvas.tv-readable .seat-content strong {
   width: calc(100% - 14px);
-  font-size: 1.22rem;
+  font-size: 1.18rem;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.08;
   color: #0f1720;
-  transform: translate(-50%, -52%);
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+  transform: translate(-50%, -56%);
 }
 
 .board-canvas.tv-readable .seat-card.empty strong {
-  color: #8a97a1;
-  font-weight: 700;
+  color: #6d7d88;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transform: translate(-50%, -72%);
+}
+
+.board-canvas.tv-readable .seat-card.fixed strong {
+  transform: translate(-50%, -45%);
 }
 
 .seat-pin-button {
@@ -1147,6 +1265,32 @@ textarea {
 
 .board-canvas.tv-readable .seat-meta {
   display: none;
+}
+
+
+.board-canvas.tv-readable .seat-card.empty::before {
+  width: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+}
+
+.board-canvas.tv-readable .seat-card.fixed::before {
+  width: 7px;
+}
+
+.board-canvas.tv-readable .seat-card.active.fixed {
+  border-color: rgba(244, 201, 93, 0.8);
+  background: linear-gradient(180deg, #fff6dd 0%, #ebf8ef 100%);
+  box-shadow:
+    0 0 0 4px rgba(244, 201, 93, 0.28),
+    0 18px 34px rgba(15, 23, 32, 0.14),
+    0 0 0 2px rgba(21, 138, 99, 0.16);
+}
+
+.board-canvas.tv-readable .seat-meta.gender-male,
+.board-canvas.tv-readable .seat-meta.gender-female,
+.board-canvas.tv-readable .seat-meta.gender-unknown {
+  color: var(--tv-muted);
 }
 
 .inspector {
