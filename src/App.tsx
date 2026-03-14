@@ -1787,6 +1787,8 @@ export default function App() {
                           const tvOutlineBorderColor = compactTvOutline
                             ? 'rgba(31, 41, 51, 0.34)'
                             : 'rgba(31, 41, 51, 0.52)';
+                          const showGroupBadge =
+                            !tvBoardLayout || (group.preset !== 'single' && group.preset !== 'pair');
 
                           return (
                             <div
@@ -1801,11 +1803,13 @@ export default function App() {
                                 backgroundColor: tvBoardLayout ? 'transparent' : `${group.color}22`,
                               }}
                             >
-                              <span
-                                className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
-                              >
-                                {group.label}
-                              </span>
+                              {showGroupBadge ? (
+                                <span
+                                  className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
+                                >
+                                  {group.label}
+                                </span>
+                              ) : null}
                             </div>
                           );
                         })}
