@@ -545,21 +545,7 @@ textarea {
 }
 
 .board-layout-field {
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-}
-
-.board-layout-field > span {
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #697983;
-  line-height: 1;
+  gap: 0;
 }
 
 .board-layout-control {

@@ -1664,7 +1664,6 @@ export default function App() {
                   </button>
                 </div>
                 <div className="field print-hidden board-layout-field">
-                  <span>화면 레이아웃</span>
                   <div className="segment-control board-layout-control">
                     {(Object.entries(BOARD_LAYOUT_MODE_LABELS) as Array<
                       [BoardLayoutMode, string]
