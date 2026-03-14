@@ -336,8 +336,28 @@ function assignMixedPatternStudents(
   seats: Seat[],
   remainingStudents: Student[],
 ): void {
+  const buckets = createAssignmentBuckets(classroom, seats);
+  const selectedSeatIds = new Set<string>();
+
+  remainingStudents.forEach(() => {
+    const nextBucket = pickBalancedBucket(buckets);
+
+    if (!nextBucket) {
+      return;
+    }
+
+    const targetSeat = nextBucket.openSeats.shift();
+
+    if (!targetSeat) {
+      return;
+    }
+
+    selectedSeatIds.add(targetSeat.id);
+    nextBucket.currentCount += 1;
+  });
+
   const openSeats = sortSeatsByLayout(
-    seats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
+    seats.filter((seat) => selectedSeatIds.has(seat.id)),
   );
 
   if (openSeats.length === 0 || remainingStudents.length === 0) {
