@@ -82,6 +82,7 @@ const GENDER_MODE_LABELS: Record<GenderMode, string> = {
 
 const BOARD_LAYOUT_MODE_LABELS: Record<BoardLayoutMode, string> = {
   classic: '기본',
+  focus: '이름 크게',
   tv: 'TV 크게',
 };
 
@@ -669,6 +670,7 @@ export default function App() {
       : activeClassroom;
   const boardLayoutMode = activeClassroom?.boardLayoutMode ?? 'classic';
   const tvBoardLayout = boardLayoutMode === 'tv';
+  const focusBoardLayout = boardLayoutMode === 'focus';
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
   const boardInteractionEnabled = !basePlanRevealActive;
   const layoutBounds = boardClassroom ? getVisibleLayoutBounds(boardClassroom, viewMode) : null;
@@ -1736,7 +1738,7 @@ export default function App() {
                       style={{ width: scaledBoardWidth, height: scaledBoardHeight }}
                     >
                       <div
-                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''}`}
+                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''} ${focusBoardLayout ? 'name-focus' : ''}`}
                         style={{
                           width: renderCanvasWidth,
                           height: renderCanvasHeight,
@@ -1825,10 +1827,10 @@ export default function App() {
                             viewMode,
                           );
                           const seatMetaText = student
-                            ? tvBoardLayout
+                            ? tvBoardLayout || focusBoardLayout
                               ? null
                               : `${student.number ? `${student.number}번` : '번호 없음'} · ${getGenderLabel(student.gender)}`
-                            : tvBoardLayout
+                            : tvBoardLayout || focusBoardLayout
                               ? null
                               : '미배치';
 

@@ -3,7 +3,7 @@ export type Gender = 'male' | 'female' | 'unknown';
 export type SeatPreset = 'single' | 'pair' | 'group4' | 'group6';
 
 export type ViewMode = 'teacher' | 'student';
-export type BoardLayoutMode = 'classic' | 'tv';
+export type BoardLayoutMode = 'classic' | 'focus' | 'tv';
 export type GenderMode = 'random' | 'same' | 'mixed';
 
 export type DeskVariant =

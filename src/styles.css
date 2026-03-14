@@ -1162,6 +1162,28 @@ textarea {
   font-weight: 700;
 }
 
+.board-canvas.name-focus .seat-content {
+  padding: 6px 10px;
+}
+
+.board-canvas.name-focus .seat-content strong {
+  width: calc(100% - 18px);
+  font-size: 1.14rem;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  transform: translate(-50%, -50%);
+}
+
+.board-canvas.name-focus .seat-card.empty strong {
+  color: #7b8992;
+  font-weight: 700;
+}
+
+.board-canvas.name-focus .seat-meta {
+  display: none;
+}
+
 .board-canvas.tv-readable .seat-content strong {
   width: calc(100% - 14px);
   font-size: 1.18rem;

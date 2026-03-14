@@ -50,7 +50,7 @@ const VALID_VARIANTS: DeskVariant[] = [
   'group6-u',
 ];
 const VALID_VIEW_MODES: ViewMode[] = ['teacher', 'student'];
-const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'tv'];
+const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'focus', 'tv'];
 const VALID_GENDER_MODES: GenderMode[] = ['random', 'same', 'mixed'];
 
 function now(): string {
