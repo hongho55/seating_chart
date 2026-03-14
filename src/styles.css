@@ -1172,18 +1172,18 @@ textarea {
   color: #0f1720;
   letter-spacing: -0.02em;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
-  transform: translate(-50%, -56%);
+  transform: translate(-50%, -50%);
 }
 
 .board-canvas.tv-readable .seat-card.empty strong {
   color: #6d7d88;
   font-weight: 800;
   letter-spacing: 0.01em;
-  transform: translate(-50%, -72%);
+  transform: translate(-50%, -62%);
 }
 
 .board-canvas.tv-readable .seat-card.fixed strong {
-  transform: translate(-50%, -45%);
+  transform: translate(-50%, -50%);
 }
 
 .seat-pin-button {
@@ -1216,6 +1216,19 @@ textarea {
   box-shadow: 0 6px 14px rgba(29, 138, 101, 0.28);
   color: #f7fffb;
   transform: scale(1.05);
+}
+
+.board-canvas.tv-readable .seat-pin-button {
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow:
+    0 6px 14px rgba(15, 23, 32, 0.18),
+    0 1px 3px rgba(15, 23, 32, 0.12);
 }
 
 .drag-handle {
