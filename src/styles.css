@@ -1,6 +1,9 @@
 :root {
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
   color: #20303d;
+  --gender-male-accent: #7280c2;
+  --gender-female-accent: #b48757;
+  --gender-unknown-accent: #99a6af;
   background:
     radial-gradient(circle at top right, rgba(244, 201, 93, 0.25), transparent 30%),
     linear-gradient(160deg, #f4f1e8 0%, #eef3f8 48%, #dde7ef 100%);
@@ -378,35 +381,35 @@ button {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 5px;
+  width: 4px;
   background: transparent;
 }
 
 .student-chip.gender-male::before {
-  background: #5b6fd6;
+  background: var(--gender-male-accent);
 }
 
 .student-chip.gender-female::before {
-  background: #c58a27;
+  background: var(--gender-female-accent);
 }
 
 .student-chip.gender-unknown::before {
-  background: #91a0aa;
+  background: var(--gender-unknown-accent);
 }
 
 .student-chip span.gender-male {
-  color: #4054bb;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .student-chip span.gender-female {
-  color: #94650e;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .student-chip span.gender-unknown {
-  color: #62737e;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .classroom-card.active,
@@ -945,36 +948,36 @@ textarea {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 8px;
+  width: 6px;
   border-radius: 14px 0 0 14px;
   background: transparent;
 }
 
 .seat-card.occupied.gender-male {
-  border-color: rgba(91, 111, 214, 0.3);
-  background: linear-gradient(180deg, #eef1ff 0%, #ffffff 48%);
+  border-color: rgba(32, 48, 61, 0.14);
+  background: #ffffff;
 }
 
 .seat-card.occupied.gender-male::before {
-  background: #5b6fd6;
+  background: var(--gender-male-accent);
 }
 
 .seat-card.occupied.gender-female {
-  border-color: rgba(197, 138, 39, 0.34);
-  background: linear-gradient(180deg, #fff4df 0%, #ffffff 48%);
+  border-color: rgba(32, 48, 61, 0.14);
+  background: #ffffff;
 }
 
 .seat-card.occupied.gender-female::before {
-  background: #c58a27;
+  background: var(--gender-female-accent);
 }
 
 .seat-card.occupied.gender-unknown {
-  border-color: rgba(145, 160, 170, 0.34);
-  background: linear-gradient(180deg, #f1f4f7 0%, #ffffff 48%);
+  border-color: rgba(32, 48, 61, 0.14);
+  background: #ffffff;
 }
 
 .seat-card.occupied.gender-unknown::before {
-  background: #91a0aa;
+  background: var(--gender-unknown-accent);
 }
 
 .board-canvas.tv-readable .seat-card {
@@ -991,15 +994,15 @@ textarea {
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-male {
-  background: linear-gradient(180deg, #e9eeff 0%, #fffdf8 100%);
+  background: #fffdf8;
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-female {
-  background: linear-gradient(180deg, #fff0d6 0%, #fffdf8 100%);
+  background: #fffdf8;
 }
 
 .board-canvas.tv-readable .seat-card.occupied.gender-unknown {
-  background: linear-gradient(180deg, #eef2f5 0%, #fffdf8 100%);
+  background: #fffdf8;
 }
 
 .seat-card.clickable {
@@ -1128,18 +1131,18 @@ textarea {
 }
 
 .seat-meta.gender-male {
-  color: #4054bb;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .seat-meta.gender-female {
-  color: #94650e;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .seat-meta.gender-unknown {
-  color: #62737e;
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
 }
 
 .board-canvas.tv-readable .seat-meta {
