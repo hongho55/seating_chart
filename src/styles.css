@@ -545,11 +545,21 @@ textarea {
 }
 
 .board-layout-field {
-  gap: 8px;
+  gap: 5px;
+}
+
+.board-layout-field > span {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #697983;
 }
 
 .board-layout-control {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 240px);
+  max-width: 240px;
+  justify-self: start;
 }
 
 .base-plan-arm-control {
