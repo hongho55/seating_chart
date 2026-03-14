@@ -1011,7 +1011,7 @@ textarea {
 .seat-card {
   width: 136px;
   height: 70px;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
   border: 2px solid rgba(32, 48, 61, 0.14);
   border-radius: 16px;
@@ -1222,8 +1222,8 @@ textarea {
 
 .seat-pin-button {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: -4px;
+  right: -4px;
   z-index: 4;
   display: inline-flex;
   align-items: center;
