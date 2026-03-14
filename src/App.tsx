@@ -84,7 +84,6 @@ const GENDER_MODE_LABELS: Record<GenderMode, string> = {
 const BOARD_LAYOUT_MODE_LABELS: Record<BoardLayoutMode, string> = {
   classic: '기본',
   focus: '이름 크게',
-  tv: 'TV 크게',
 };
 
 const FOCUS_FONT_LABELS: Record<FocusFontPreset, string> = {
@@ -675,7 +674,6 @@ export default function App() {
         )
       : activeClassroom;
   const boardLayoutMode = activeClassroom?.boardLayoutMode ?? 'classic';
-  const tvBoardLayout = boardLayoutMode === 'tv';
   const focusBoardLayout = boardLayoutMode === 'focus';
   const focusFontPreset = activeClassroom?.focusFontPreset ?? 'suit';
   const viewMode = activeClassroom?.lastViewMode ?? 'teacher';
@@ -1752,7 +1750,7 @@ export default function App() {
               <section className="canvas-section">
                 <div
                   ref={boardShellRef}
-                  className={`board-shell ${tvBoardLayout ? 'tv-readable' : ''} ${isBoardFullscreen ? 'fullscreen-active' : ''}`}
+                  className={`board-shell ${isBoardFullscreen ? 'fullscreen-active' : ''}`}
                 >
                   {isBoardFullscreen ? (
                     <div className="board-presentation-overlay print-hidden">
@@ -1772,7 +1770,7 @@ export default function App() {
                       style={{ width: scaledBoardWidth, height: scaledBoardHeight }}
                     >
                       <div
-                        className={`board-canvas ${tvBoardLayout ? 'tv-readable' : ''} ${focusBoardLayout ? 'name-focus' : ''} ${focusBoardLayout ? `focus-font-${focusFontPreset}` : ''}`}
+                        className={`board-canvas ${focusBoardLayout ? 'name-focus' : ''} ${focusBoardLayout ? `focus-font-${focusFontPreset}` : ''}`}
                         style={{
                           width: renderCanvasWidth,
                           height: renderCanvasHeight,
@@ -1823,21 +1821,17 @@ export default function App() {
                           return (
                             <div
                               key={group.id}
-                              className={`seat-group-outline ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
+                              className="seat-group-outline"
                               style={{
                                 left: groupFrame.left,
                                 top: groupFrame.top,
                                 width: groupOutlineWidth,
                                 height: groupOutlineHeight,
-                                borderColor: tvBoardLayout ? 'rgba(31, 41, 51, 0.52)' : group.color,
-                                backgroundColor: tvBoardLayout ? 'transparent' : `${group.color}22`,
+                                borderColor: group.color,
+                                backgroundColor: `${group.color}22`,
                               }}
                             >
-                              <span
-                                className={`group-badge ${tvBoardLayout ? `preset-${group.preset}` : ''}`}
-                              >
-                                {group.label}
-                              </span>
+                              <span className="group-badge">{group.label}</span>
                             </div>
                           );
                         })}
@@ -1861,10 +1855,10 @@ export default function App() {
                             viewMode,
                           );
                           const seatMetaText = student
-                            ? tvBoardLayout || focusBoardLayout
+                            ? focusBoardLayout
                               ? null
                               : `${student.number ? `${student.number}번` : '번호 없음'} · ${getGenderLabel(student.gender)}`
-                            : tvBoardLayout || focusBoardLayout
+                            : focusBoardLayout
                               ? null
                               : '미배치';
 

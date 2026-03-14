@@ -51,7 +51,7 @@ const VALID_VARIANTS: DeskVariant[] = [
   'group6-u',
 ];
 const VALID_VIEW_MODES: ViewMode[] = ['teacher', 'student'];
-const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'focus', 'tv'];
+const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'focus'];
 const VALID_FOCUS_FONT_PRESETS: FocusFontPreset[] = ['suit', 'wanted'];
 const VALID_GENDER_MODES: GenderMode[] = ['random', 'same', 'mixed'];
 
@@ -506,8 +506,10 @@ function parseClassroom(value: unknown, index: number): ParseResult<Classroom> {
   }
 
   const boardLabel = value.boardLabel == null ? '칠판' : value.boardLabel;
-  const boardLayoutMode =
+  const rawBoardLayoutMode =
     value.boardLayoutMode == null ? 'classic' : value.boardLayoutMode;
+  const boardLayoutMode =
+    rawBoardLayoutMode === 'tv' ? 'focus' : rawBoardLayoutMode;
   const focusFontPreset =
     value.focusFontPreset == null ? 'suit' : value.focusFontPreset;
   const lastViewMode = value.lastViewMode == null ? 'teacher' : value.lastViewMode;
