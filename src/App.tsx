@@ -89,6 +89,7 @@ const BOARD_LAYOUT_MODE_LABELS: Record<BoardLayoutMode, string> = {
 const FOCUS_FONT_LABELS: Record<FocusFontPreset, string> = {
   suit: 'SUIT',
   wanted: 'Wanted Sans',
+  nanum: '나눔스퀘어',
 };
 
 const PRINT_MARGIN_MM = 8;

@@ -5,7 +5,7 @@ export type SeatPreset = 'single' | 'pair' | 'group4' | 'group6';
 export type ViewMode = 'teacher' | 'student';
 export type BoardLayoutMode = 'classic' | 'focus';
 export type GenderMode = 'random' | 'same' | 'mixed';
-export type FocusFontPreset = 'suit' | 'wanted';
+export type FocusFontPreset = 'suit' | 'wanted' | 'nanum';
 
 export type DeskVariant =
   | 'single'

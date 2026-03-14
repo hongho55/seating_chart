@@ -52,7 +52,7 @@ const VALID_VARIANTS: DeskVariant[] = [
 ];
 const VALID_VIEW_MODES: ViewMode[] = ['teacher', 'student'];
 const VALID_BOARD_LAYOUT_MODES: BoardLayoutMode[] = ['classic', 'focus'];
-const VALID_FOCUS_FONT_PRESETS: FocusFontPreset[] = ['suit', 'wanted'];
+const VALID_FOCUS_FONT_PRESETS: FocusFontPreset[] = ['suit', 'wanted', 'nanum'];
 const VALID_GENDER_MODES: GenderMode[] = ['random', 'same', 'mixed'];
 
 function now(): string {
