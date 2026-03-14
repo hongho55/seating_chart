@@ -15,6 +15,13 @@ type AssignmentBucket = {
   priority: number;
 };
 
+type SeatColor = 0 | 1;
+
+type MixedPatternContext = {
+  components: string[][];
+  seatColors: Map<string, SeatColor>;
+};
+
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items];
 
@@ -107,26 +114,93 @@ function getOrthogonalSeatPairs(seats: Seat[]): Array<[Seat, Seat]> {
   return pairs;
 }
 
-function countMixedAdjacencyMisses(
-  groupSeats: Seat[],
-  studentMap: Map<string, Student>,
-  assignedStudentIdsBySeatId?: Map<string, string | null>,
-): number {
-  let misses = 0;
+function buildMixedPatternContext(seats: Seat[]): MixedPatternContext {
+  const sortedSeats = sortSeatsByLayout(seats);
+  const adjacency = new Map<string, string[]>(sortedSeats.map((seat) => [seat.id, []]));
 
-  getOrthogonalSeatPairs(groupSeats).forEach(([leftSeat, rightSeat]) => {
-    const leftStudentId = assignedStudentIdsBySeatId?.get(leftSeat.id) ?? leftSeat.assignedStudentId;
-    const rightStudentId = assignedStudentIdsBySeatId?.get(rightSeat.id) ?? rightSeat.assignedStudentId;
-    const leftGender = getStudentGender(studentMap, leftStudentId);
-    const rightGender = getStudentGender(studentMap, rightStudentId);
+  getOrthogonalSeatPairs(sortedSeats).forEach(([leftSeat, rightSeat]) => {
+    adjacency.get(leftSeat.id)?.push(rightSeat.id);
+    adjacency.get(rightSeat.id)?.push(leftSeat.id);
+  });
 
-    if (!leftGender || !rightGender || leftGender === 'unknown' || rightGender === 'unknown') {
+  const components: string[][] = [];
+  const seatColors = new Map<string, SeatColor>();
+
+  sortedSeats.forEach((seat) => {
+    if (seatColors.has(seat.id)) {
       return;
     }
 
-    if (leftGender === rightGender) {
-      misses += 1;
+    const component: string[] = [];
+    const queue: Array<{ seatId: string; color: SeatColor }> = [{ seatId: seat.id, color: 0 }];
+
+    for (let index = 0; index < queue.length; index += 1) {
+      const current = queue[index];
+
+      if (seatColors.has(current.seatId)) {
+        continue;
+      }
+
+      seatColors.set(current.seatId, current.color);
+      component.push(current.seatId);
+
+      (adjacency.get(current.seatId) ?? []).forEach((neighborSeatId) => {
+        if (!seatColors.has(neighborSeatId)) {
+          queue.push({
+            seatId: neighborSeatId,
+            color: current.color === 0 ? 1 : 0,
+          });
+        }
+      });
     }
+
+    components.push(component);
+  });
+
+  return { components, seatColors };
+}
+
+function countMixedCheckerboardMisses(
+  seats: Seat[],
+  studentMap: Map<string, Student>,
+  mixedPatternContext: MixedPatternContext,
+  assignedStudentIdsBySeatId?: Map<string, string | null>,
+): number {
+  let misses = 0;
+  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
+
+  mixedPatternContext.components.forEach((component) => {
+    let maleLeadingMisses = 0;
+    let femaleLeadingMisses = 0;
+
+    component.forEach((seatId) => {
+      const seat = seatMap.get(seatId);
+
+      if (!seat) {
+        return;
+      }
+
+      const studentId = assignedStudentIdsBySeatId?.get(seat.id) ?? seat.assignedStudentId;
+      const gender = getStudentGender(studentMap, studentId);
+
+      if (!gender || gender === 'unknown') {
+        return;
+      }
+
+      const seatColor = mixedPatternContext.seatColors.get(seat.id) ?? 0;
+      const maleLeadingPreferredGender = seatColor === 0 ? 'male' : 'female';
+      const femaleLeadingPreferredGender = seatColor === 0 ? 'female' : 'male';
+
+      if (gender !== maleLeadingPreferredGender) {
+        maleLeadingMisses += 1;
+      }
+
+      if (gender !== femaleLeadingPreferredGender) {
+        femaleLeadingMisses += 1;
+      }
+    });
+
+    misses += Math.min(maleLeadingMisses, femaleLeadingMisses);
   });
 
   return misses;
@@ -153,8 +227,12 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
   }
 
   const studentMap = getStudentMap(classroom.students);
+
+  if (genderMode === 'mixed') {
+    return countMixedCheckerboardMisses(seats, studentMap, buildMixedPatternContext(seats));
+  }
+
   const groupMembers = getGroupMembers(classroom, seats);
-  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
   let misses = 0;
 
   classroom.groups.forEach((group) => {
@@ -182,30 +260,7 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
       return;
     }
 
-    if (genderMode === 'same') {
-      misses += Math.min(maleCount, femaleCount);
-      return;
-    }
-
-    const groupSeats = sortSeatsByLayout(
-      group.seatIds
-        .map((seatId) => seatMap.get(seatId))
-        .filter((seat): seat is Seat => Boolean(seat)),
-    );
-    const knownCount = maleCount + femaleCount;
-
-    if (knownCount <= 1) {
-      misses += countMixedAdjacencyMisses(groupSeats, studentMap);
-      return;
-    }
-
-    misses += Math.abs(maleCount - femaleCount);
-
-    if (maleCount === 0 || femaleCount === 0) {
-      misses += knownCount;
-    }
-
-    misses += countMixedAdjacencyMisses(groupSeats, studentMap);
+    misses += Math.min(maleCount, femaleCount);
   });
 
   return misses;
@@ -276,6 +331,55 @@ function pickBalancedBucket(buckets: AssignmentBucket[]): AssignmentBucket | nul
   return bestBucket;
 }
 
+function assignMixedPatternStudents(
+  classroom: Classroom,
+  seats: Seat[],
+  remainingStudents: Student[],
+): void {
+  const openSeats = sortSeatsByLayout(
+    seats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
+  );
+
+  if (openSeats.length === 0 || remainingStudents.length === 0) {
+    return;
+  }
+
+  const mixedPatternContext = buildMixedPatternContext(seats);
+  const studentMap = getStudentMap(classroom.students);
+  let bestAssignments = new Map<string, string | null>();
+  let bestMisses = Number.POSITIVE_INFINITY;
+  let bestConflicts = Number.POSITIVE_INFINITY;
+
+  ([0, 1] as const).forEach((maleLeadingColor) => {
+    const maleStudents = remainingStudents.filter((student) => student.gender === 'male');
+    const femaleStudents = remainingStudents.filter((student) => student.gender === 'female');
+    const unknownStudents = remainingStudents.filter((student) => student.gender === 'unknown');
+
+    openSeats.forEach((seat) => {
+      const seatColor = mixedPatternContext.seatColors.get(seat.id) ?? 0;
+      const prefersMale = seatColor === maleLeadingColor;
+      const assignedStudent = prefersMale
+        ? maleStudents.shift() ?? femaleStudents.shift() ?? unknownStudents.shift()
+        : femaleStudents.shift() ?? maleStudents.shift() ?? unknownStudents.shift();
+
+      seat.assignedStudentId = assignedStudent?.id ?? null;
+    });
+
+    const misses = countMixedCheckerboardMisses(seats, studentMap, mixedPatternContext);
+    const conflicts = countConflictViolations(classroom, seats);
+
+    if (misses < bestMisses || (misses === bestMisses && conflicts < bestConflicts)) {
+      bestMisses = misses;
+      bestConflicts = conflicts;
+      bestAssignments = new Map(openSeats.map((seat) => [seat.id, seat.assignedStudentId]));
+    }
+  });
+
+  openSeats.forEach((seat) => {
+    seat.assignedStudentId = bestAssignments.get(seat.id) ?? null;
+  });
+}
+
 function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Seat[] {
   const seats = cloneSeats(classroom.seats);
   const availableStudentIds = new Set(shuffledStudents.map((student) => student.id));
@@ -290,6 +394,13 @@ function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Sea
   });
 
   const remainingStudents = shuffledStudents.filter((student) => availableStudentIds.has(student.id));
+
+  if (classroom.randomSettings.genderMode === 'mixed') {
+    assignMixedPatternStudents(classroom, seats, remainingStudents);
+    optimizeMixedSeatAssignments(classroom, seats);
+    return seats;
+  }
+
   const buckets = createAssignmentBuckets(classroom, seats);
 
   remainingStudents.forEach((student) => {
@@ -309,92 +420,81 @@ function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Sea
     nextBucket.currentCount += 1;
   });
 
-  if (classroom.randomSettings.genderMode === 'mixed') {
-    optimizeMixedSeatAssignments(classroom, seats);
-  }
-
   return seats;
 }
 
 function optimizeMixedSeatAssignments(classroom: Classroom, seats: Seat[]): void {
   const studentMap = getStudentMap(classroom.students);
-  const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
+  const mixedPatternContext = buildMixedPatternContext(seats);
+  const movableSeats = sortSeatsByLayout(
+    seats.filter((seat) => !seat.fixed && seat.assignedStudentId),
+  );
 
-  classroom.groups.forEach((group) => {
-    const groupSeats = sortSeatsByLayout(
-      group.seatIds
-        .map((seatId) => seatMap.get(seatId))
-        .filter((seat): seat is Seat => Boolean(seat)),
-    );
-    const movableSeats = groupSeats.filter((seat) => !seat.fixed && seat.assignedStudentId);
+  if (movableSeats.length <= 1) {
+    return;
+  }
 
-    if (movableSeats.length <= 1) {
-      return;
-    }
+  let bestConflicts = countConflictViolations(classroom, seats);
+  let bestGenderMisses = countMixedCheckerboardMisses(seats, studentMap, mixedPatternContext);
+  let improved = true;
 
-    const currentStudentIds = movableSeats.map((seat) => seat.assignedStudentId as string);
-    const assignedStudentIdsBySeatId = new Map(
-      groupSeats.map((seat) => [seat.id, seat.assignedStudentId]),
-    );
-    const nextStudentIds = [...currentStudentIds];
-    const used = new Array(currentStudentIds.length).fill(false);
-    let bestStudentIds = [...currentStudentIds];
-    let bestAdjacencyMisses = countMixedAdjacencyMisses(
-      groupSeats,
-      studentMap,
-      assignedStudentIdsBySeatId,
-    );
-    let bestMovement = 0;
+  while (improved) {
+    improved = false;
+    let bestSwap: [number, number] | null = null;
+    let nextConflicts = bestConflicts;
+    let nextGenderMisses = bestGenderMisses;
 
-    const backtrack = (seatIndex: number) => {
-      if (seatIndex === movableSeats.length) {
-        const adjacencyMisses = countMixedAdjacencyMisses(
-          groupSeats,
-          studentMap,
-          assignedStudentIdsBySeatId,
-        );
-        const movement = nextStudentIds.reduce(
-          (total, studentId, index) => total + (studentId === currentStudentIds[index] ? 0 : 1),
-          0,
-        );
+    for (let leftIndex = 0; leftIndex < movableSeats.length - 1; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < movableSeats.length; rightIndex += 1) {
+        const leftSeat = movableSeats[leftIndex];
+        const rightSeat = movableSeats[rightIndex];
+        const leftStudentId = leftSeat.assignedStudentId;
+        const rightStudentId = rightSeat.assignedStudentId;
 
-        if (
-          adjacencyMisses < bestAdjacencyMisses ||
-          (adjacencyMisses === bestAdjacencyMisses && movement < bestMovement)
-        ) {
-          bestAdjacencyMisses = adjacencyMisses;
-          bestMovement = movement;
-          bestStudentIds = [...nextStudentIds];
-        }
-
-        return;
-      }
-
-      for (let index = 0; index < currentStudentIds.length; index += 1) {
-        if (used[index]) {
+        if (!leftStudentId || !rightStudentId || leftStudentId === rightStudentId) {
           continue;
         }
 
-        const studentId = currentStudentIds[index];
+        leftSeat.assignedStudentId = rightStudentId;
+        rightSeat.assignedStudentId = leftStudentId;
 
-        used[index] = true;
-        nextStudentIds[seatIndex] = studentId;
-        assignedStudentIdsBySeatId.set(movableSeats[seatIndex].id, studentId);
-        backtrack(seatIndex + 1);
-        assignedStudentIdsBySeatId.set(
-          movableSeats[seatIndex].id,
-          currentStudentIds[seatIndex],
+        const conflicts = countConflictViolations(classroom, seats);
+        const genderMisses = countMixedCheckerboardMisses(
+          seats,
+          studentMap,
+          mixedPatternContext,
         );
-        used[index] = false;
+
+        leftSeat.assignedStudentId = leftStudentId;
+        rightSeat.assignedStudentId = rightStudentId;
+
+        if (
+          conflicts < nextConflicts ||
+          (conflicts === nextConflicts && genderMisses < nextGenderMisses)
+        ) {
+          bestSwap = [leftIndex, rightIndex];
+          nextConflicts = conflicts;
+          nextGenderMisses = genderMisses;
+        }
       }
-    };
+    }
 
-    backtrack(0);
+    if (!bestSwap) {
+      continue;
+    }
 
-    movableSeats.forEach((seat, index) => {
-      seat.assignedStudentId = bestStudentIds[index];
-    });
-  });
+    const [leftIndex, rightIndex] = bestSwap;
+    const leftSeat = movableSeats[leftIndex];
+    const rightSeat = movableSeats[rightIndex];
+    const leftStudentId = leftSeat.assignedStudentId;
+    const rightStudentId = rightSeat.assignedStudentId;
+
+    leftSeat.assignedStudentId = rightStudentId;
+    rightSeat.assignedStudentId = leftStudentId;
+    bestConflicts = nextConflicts;
+    bestGenderMisses = nextGenderMisses;
+    improved = true;
+  }
 }
 
 function calculateUnplacedStudents(classroom: Classroom, seats: Seat[]): number {
