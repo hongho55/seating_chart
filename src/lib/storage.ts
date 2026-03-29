@@ -5,6 +5,7 @@ import { createPresetLayout } from './layouts';
 import type { AppData, Classroom } from '../types';
 
 const STORAGE_KEY = 'seating-chart.app.v1';
+const SHOW_SEAT_PIN_BUTTONS_KEY = 'seating-chart.ui.show-seat-pin-buttons.v1';
 
 function now(): string {
   return new Date().toISOString();
@@ -91,6 +92,22 @@ export function saveAppData(data: AppData): void {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+export function loadShowSeatPinButtons(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(SHOW_SEAT_PIN_BUTTONS_KEY) === 'true';
+}
+
+export function saveShowSeatPinButtons(value: boolean): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.localStorage.setItem(SHOW_SEAT_PIN_BUTTONS_KEY, value ? 'true' : 'false');
 }
 
 export type { BackupParseResult } from './backupParser';

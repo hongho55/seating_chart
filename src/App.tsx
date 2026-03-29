@@ -50,8 +50,10 @@ import {
   createBackupFile,
   createEmptyClassroom,
   loadAppData,
+  loadShowSeatPinButtons,
   parseBackupFile,
   saveAppData,
+  saveShowSeatPinButtons,
 } from './lib/storage';
 import type {
   AppData,
@@ -486,7 +488,7 @@ export default function App() {
     studentBId: '',
   });
   const [randomSummary, setRandomSummary] = useState<RandomSummary | null>(null);
-  const [showSeatPinButtons, setShowSeatPinButtons] = useState(false);
+  const [showSeatPinButtons, setShowSeatPinButtons] = useState(() => loadShowSeatPinButtons());
   const [basePlanApplyArmedClassroomId, setBasePlanApplyArmedClassroomId] = useState<string | null>(
     null,
   );
@@ -515,6 +517,10 @@ export default function App() {
       window.clearTimeout(timeoutId);
     };
   }, [data, basePlanEditSession]);
+
+  useEffect(() => {
+    saveShowSeatPinButtons(showSeatPinButtons);
+  }, [showSeatPinButtons]);
 
   useEffect(() => {
     return () => {
