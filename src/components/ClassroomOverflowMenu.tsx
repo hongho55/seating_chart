@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 
 interface ClassroomOverflowMenuProps {
   isBasePlanEditMode: boolean;
+  showSeatPinButtons: boolean;
   basePlanApplyArmed: boolean;
   basePlanApplyDisabled: boolean;
   basePlanApplyHelperText: string;
   onToggleBasePlanEditMode: () => void;
+  onToggleShowSeatPinButtons: () => void;
   onToggleBasePlanApplyArmed: () => void;
 }
 
 export function ClassroomOverflowMenu({
   isBasePlanEditMode,
+  showSeatPinButtons,
   basePlanApplyArmed,
   basePlanApplyDisabled,
   basePlanApplyHelperText,
   onToggleBasePlanEditMode,
+  onToggleShowSeatPinButtons,
   onToggleBasePlanApplyArmed,
 }: ClassroomOverflowMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,21 +89,36 @@ export function ClassroomOverflowMenu({
           >
             {isBasePlanEditMode ? '고급 설정 닫기' : '고급 설정'}
           </button>
-          <div className="classroom-overflow-divider" />
-          <button
-            className={`classroom-overflow-item classroom-overflow-toggle ${basePlanApplyArmed ? 'active' : ''}`}
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={basePlanApplyArmed}
-            disabled={basePlanApplyDisabled}
-            onClick={onToggleBasePlanApplyArmed}
-          >
-            <span>다음 실행</span>
-            <span>{basePlanApplyArmed ? '준비됨' : '기본'}</span>
-          </button>
-          <p className={`classroom-overflow-helper ${basePlanApplyArmed ? 'active' : ''}`}>
-            {basePlanApplyHelperText}
-          </p>
+          {!isBasePlanEditMode ? (
+            <>
+              <div className="classroom-overflow-divider" />
+              <button
+                className={`classroom-overflow-item classroom-overflow-toggle ${showSeatPinButtons ? 'active' : ''}`}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={showSeatPinButtons}
+                onClick={onToggleShowSeatPinButtons}
+              >
+                <span>고정 핀 표시</span>
+                <span>{showSeatPinButtons ? '표시' : '숨김'}</span>
+              </button>
+              <div className="classroom-overflow-divider" />
+              <button
+                className={`classroom-overflow-item classroom-overflow-toggle ${basePlanApplyArmed ? 'active' : ''}`}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={basePlanApplyArmed}
+                disabled={basePlanApplyDisabled}
+                onClick={onToggleBasePlanApplyArmed}
+              >
+                <span>다음 실행</span>
+                <span>{basePlanApplyArmed ? '준비됨' : '기본'}</span>
+              </button>
+              <p className={`classroom-overflow-helper ${basePlanApplyArmed ? 'active' : ''}`}>
+                {basePlanApplyHelperText}
+              </p>
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>

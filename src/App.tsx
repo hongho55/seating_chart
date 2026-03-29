@@ -486,6 +486,7 @@ export default function App() {
     studentBId: '',
   });
   const [randomSummary, setRandomSummary] = useState<RandomSummary | null>(null);
+  const [showSeatPinButtons, setShowSeatPinButtons] = useState(false);
   const [basePlanApplyArmedClassroomId, setBasePlanApplyArmedClassroomId] = useState<string | null>(
     null,
   );
@@ -1140,6 +1141,14 @@ export default function App() {
     setRandomSummary(null);
   }
 
+  function handleToggleShowSeatPinButtons() {
+    if (basePlanEditModeActive) {
+      return;
+    }
+
+    setShowSeatPinButtons((current) => !current);
+  }
+
   function startSeatReveal(layout: BasePlan, mode: SeatRevealMode) {
     if (!activeClassroom) {
       return;
@@ -1575,10 +1584,12 @@ export default function App() {
                   </div>
                   <ClassroomOverflowMenu
                     isBasePlanEditMode={basePlanEditModeActive}
+                    showSeatPinButtons={showSeatPinButtons}
                     basePlanApplyArmed={basePlanApplyArmed}
                     basePlanApplyDisabled={basePlanApplyDisabled}
                     basePlanApplyHelperText={basePlanApplyHelperText}
                     onToggleBasePlanEditMode={handleToggleBasePlanEditMode}
+                    onToggleShowSeatPinButtons={handleToggleShowSeatPinButtons}
                     onToggleBasePlanApplyArmed={handleToggleBasePlanApplyArmed}
                   />
                 </div>
@@ -1846,7 +1857,7 @@ export default function App() {
                               tabIndex={boardInteractionEnabled ? 0 : undefined}
                             >
                               <div className="seat-content">
-                                {student && boardInteractionEnabled ? (
+                                {student && boardInteractionEnabled && (basePlanEditModeActive || showSeatPinButtons) ? (
                                   <button
                                     className={`seat-pin-button ${seat.fixed ? 'active' : ''}`}
                                     type="button"
