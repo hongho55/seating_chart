@@ -100,7 +100,7 @@ export function ClassroomOverflowMenu({
                 onClick={onToggleShowSeatPinButtons}
               >
                 <span>고정 핀 표시</span>
-                <span>{showSeatPinButtons ? '표시' : '숨김'}</span>
+                <span>{showSeatPinButtons ? 'ON' : 'OFF'}</span>
               </button>
               <div className="classroom-overflow-divider" />
               <button
