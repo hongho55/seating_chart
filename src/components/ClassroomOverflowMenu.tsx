@@ -83,7 +83,7 @@ export function ClassroomOverflowMenu({
               setMenuOpen(false);
             }}
           >
-            {isBasePlanEditMode ? '기준 배치 편집 종료' : '기준 배치 편집'}
+            {isBasePlanEditMode ? '고급 설정 닫기' : '고급 설정'}
           </button>
           <div className="classroom-overflow-divider" />
           <button
@@ -94,8 +94,8 @@ export function ClassroomOverflowMenu({
             disabled={basePlanApplyDisabled}
             onClick={onToggleBasePlanApplyArmed}
           >
-            <span>기준안 적용</span>
-            <span>{basePlanApplyArmed ? 'ON' : 'OFF'}</span>
+            <span>다음 실행</span>
+            <span>{basePlanApplyArmed ? '준비됨' : '기본'}</span>
           </button>
           <p className={`classroom-overflow-helper ${basePlanApplyArmed ? 'active' : ''}`}>
             {basePlanApplyHelperText}

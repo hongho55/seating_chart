@@ -647,12 +647,12 @@ export default function App() {
   const basePlanApplyDisabled =
     basePlanEditModeActive || !basePlanAvailable || seatRevealActive;
   const basePlanApplyHelperText = seatRevealActive
-    ? '기준안 공개 중에는 변경할 수 없습니다.'
+    ? '실행 중에는 변경할 수 없습니다.'
     : !basePlanAvailable
-      ? '저장된 기준안이 있어야 사용할 수 있습니다.'
+      ? '사용할 수 있는 설정이 없습니다.'
       : basePlanApplyArmed
-        ? '다음 자리 배정 시작에서 저장된 기준안을 그대로 공개합니다.'
-        : '다음 자리 배정 시작에서 일반 랜덤 배정을 사용합니다.';
+        ? '다음 실행은 준비된 설정으로 진행합니다.'
+        : '다음 실행은 기본 흐름으로 진행합니다.';
   const seatingActionHelperText =
     seatRevealActive && seatReveal
       ? `기준안 공개 중 · ${basePlanReveal.visibleCount}/${basePlanReveal.orderedSeatIds.length} 자리를 순서대로 보여주고 있습니다.`
