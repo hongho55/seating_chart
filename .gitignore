@@ -1,4 +1,7 @@
 node_modules
 dist
+dist-pages
 .DS_Store
 .omx/
+
+*.tsbuildinfo
