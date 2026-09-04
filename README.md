@@ -24,6 +24,12 @@ npm install
 npm run dev
 ```
 
+테스트 실행:
+
+```bash
+npm test
+```
+
 ## 현재 구현 범위
 
 - 반 생성 및 샘플 반 제공
