@@ -22,11 +22,13 @@ type MixedPatternContext = {
   seatColors: Map<string, SeatColor>;
 };
 
-function shuffle<T>(items: T[]): T[] {
+type RandomSource = () => number;
+
+function shuffle<T>(items: T[], random: RandomSource = Math.random): T[] {
   const copy = [...items];
 
   for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = Math.floor(random() * (index + 1));
     const temp = copy[index];
     copy[index] = copy[swapIndex];
     copy[swapIndex] = temp;
@@ -221,6 +223,88 @@ function countConflictViolations(classroom: Classroom, seats: Seat[]): number {
   return violations;
 }
 
+function getFixedStudentIds(seats: Seat[]): Set<string> {
+  return new Set(
+    seats
+      .filter((seat) => seat.fixed && seat.assignedStudentId)
+      .map((seat) => seat.assignedStudentId as string),
+  );
+}
+
+function getGroupPairKeys(seats: Seat[]): Set<string> {
+  const membersByGroup = new Map<string, string[]>();
+
+  seats.forEach((seat) => {
+    if (!seat.groupId || !seat.assignedStudentId) {
+      return;
+    }
+
+    const members = membersByGroup.get(seat.groupId) ?? [];
+    members.push(seat.assignedStudentId);
+    membersByGroup.set(seat.groupId, members);
+  });
+
+  const pairKeys = new Set<string>();
+
+  membersByGroup.forEach((members) => {
+    for (let leftIndex = 0; leftIndex < members.length - 1; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < members.length; rightIndex += 1) {
+        pairKeys.add(JSON.stringify([members[leftIndex], members[rightIndex]].sort()));
+      }
+    }
+  });
+
+  return pairKeys;
+}
+
+function countRepeatedGroupPairs(previousSeats: Seat[], candidateSeats: Seat[]): number {
+  const previousPairKeys = getGroupPairKeys(previousSeats);
+  const fixedStudentIds = new Set([
+    ...getFixedStudentIds(previousSeats),
+    ...getFixedStudentIds(candidateSeats),
+  ]);
+  let repeatedPairs = 0;
+
+  getGroupPairKeys(candidateSeats).forEach((pairKey) => {
+    if (!previousPairKeys.has(pairKey)) {
+      return;
+    }
+
+    const [firstStudentId, secondStudentId] = JSON.parse(pairKey) as string[];
+
+    if (fixedStudentIds.has(firstStudentId) && fixedStudentIds.has(secondStudentId)) {
+      return;
+    }
+
+    repeatedPairs += 1;
+  });
+
+  return repeatedPairs;
+}
+
+function countRepeatedSeatAssignments(previousSeats: Seat[], candidateSeats: Seat[]): number {
+  const previousSeatMap = new Map(previousSeats.map((seat) => [seat.id, seat]));
+  let repeatedSeats = 0;
+
+  candidateSeats.forEach((candidateSeat) => {
+    const previousSeat = previousSeatMap.get(candidateSeat.id);
+
+    if (
+      !previousSeat ||
+      previousSeat.fixed ||
+      candidateSeat.fixed ||
+      !candidateSeat.assignedStudentId ||
+      previousSeat.assignedStudentId !== candidateSeat.assignedStudentId
+    ) {
+      return;
+    }
+
+    repeatedSeats += 1;
+  });
+
+  return repeatedSeats;
+}
+
 function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: GenderMode): number {
   if (genderMode === 'random') {
     return 0;
@@ -266,10 +350,14 @@ function countGenderMisses(classroom: Classroom, seats: Seat[], genderMode: Gend
   return misses;
 }
 
-function createAssignmentBuckets(classroom: Classroom, seats: Seat[]): AssignmentBucket[] {
+function createAssignmentBuckets(
+  classroom: Classroom,
+  seats: Seat[],
+  random: RandomSource = Math.random,
+): AssignmentBucket[] {
   const seatMap = new Map(seats.map((seat) => [seat.id, seat]));
   const buckets: AssignmentBucket[] = classroom.groups
-    .map((group, index) => {
+    .map((group) => {
       const groupSeats = sortSeatsByLayout(
         group.seatIds
           .map((seatId) => seatMap.get(seatId))
@@ -284,7 +372,7 @@ function createAssignmentBuckets(classroom: Classroom, seats: Seat[]): Assignmen
         id: group.id,
         currentCount: groupSeats.filter((seat) => seat.fixed && seat.assignedStudentId).length,
         openSeats: groupSeats.filter((seat) => !(seat.fixed && seat.assignedStudentId)),
-        priority: index + Math.random(),
+        priority: random(),
       };
     })
     .filter((bucket): bucket is AssignmentBucket => Boolean(bucket));
@@ -293,12 +381,12 @@ function createAssignmentBuckets(classroom: Classroom, seats: Seat[]): Assignmen
     seats.filter((seat) => !groupedSeatIds.has(seat.id)),
   );
 
-  ungroupedSeats.forEach((seat, index) => {
+  ungroupedSeats.forEach((seat) => {
     buckets.push({
       id: seat.id,
       currentCount: seat.fixed && seat.assignedStudentId ? 1 : 0,
       openSeats: seat.fixed && seat.assignedStudentId ? [] : [seat],
-      priority: classroom.groups.length + index + Math.random(),
+      priority: random(),
     });
   });
 
@@ -335,8 +423,9 @@ function assignMixedPatternStudents(
   classroom: Classroom,
   seats: Seat[],
   remainingStudents: Student[],
+  random: RandomSource = Math.random,
 ): void {
-  const buckets = createAssignmentBuckets(classroom, seats);
+  const buckets = createAssignmentBuckets(classroom, seats, random);
   const selectedSeatIds = new Set<string>();
 
   remainingStudents.forEach(() => {
@@ -369,6 +458,8 @@ function assignMixedPatternStudents(
   let bestAssignments = new Map<string, string | null>();
   let bestMisses = Number.POSITIVE_INFINITY;
   let bestConflicts = Number.POSITIVE_INFINITY;
+  let bestRepeatedGroupPairs = Number.POSITIVE_INFINITY;
+  let bestRepeatedSeatAssignments = Number.POSITIVE_INFINITY;
 
   ([0, 1] as const).forEach((maleLeadingColor) => {
     const maleStudents = remainingStudents.filter((student) => student.gender === 'male');
@@ -387,10 +478,23 @@ function assignMixedPatternStudents(
 
     const misses = countMixedCheckerboardMisses(seats, studentMap, mixedPatternContext);
     const conflicts = countConflictViolations(classroom, seats);
+    const repeatedGroupPairs = countRepeatedGroupPairs(classroom.seats, seats);
+    const repeatedSeatAssignments = countRepeatedSeatAssignments(classroom.seats, seats);
 
-    if (misses < bestMisses || (misses === bestMisses && conflicts < bestConflicts)) {
+    if (
+      misses < bestMisses ||
+      (misses === bestMisses &&
+        (conflicts < bestConflicts ||
+          (conflicts === bestConflicts &&
+            (repeatedGroupPairs < bestRepeatedGroupPairs ||
+              (repeatedGroupPairs === bestRepeatedGroupPairs &&
+                (repeatedSeatAssignments < bestRepeatedSeatAssignments ||
+                  (repeatedSeatAssignments === bestRepeatedSeatAssignments && random() < 0.5)))))))
+    ) {
       bestMisses = misses;
       bestConflicts = conflicts;
+      bestRepeatedGroupPairs = repeatedGroupPairs;
+      bestRepeatedSeatAssignments = repeatedSeatAssignments;
       bestAssignments = new Map(openSeats.map((seat) => [seat.id, seat.assignedStudentId]));
     }
   });
@@ -400,28 +504,33 @@ function assignMixedPatternStudents(
   });
 }
 
-function buildTrialSeats(classroom: Classroom, shuffledStudents: Student[]): Seat[] {
+function buildTrialSeats(
+  classroom: Classroom,
+  shuffledStudents: Student[],
+  random: RandomSource = Math.random,
+): Seat[] {
   const seats = cloneSeats(classroom.seats);
   const availableStudentIds = new Set(shuffledStudents.map((student) => student.id));
 
   seats.forEach((seat) => {
-    if (seat.fixed && seat.assignedStudentId) {
+    if (seat.fixed && seat.assignedStudentId && availableStudentIds.has(seat.assignedStudentId)) {
       availableStudentIds.delete(seat.assignedStudentId);
       return;
     }
 
     seat.assignedStudentId = null;
+    seat.fixed = false;
   });
 
   const remainingStudents = shuffledStudents.filter((student) => availableStudentIds.has(student.id));
 
   if (classroom.randomSettings.genderMode === 'mixed') {
-    assignMixedPatternStudents(classroom, seats, remainingStudents);
+    assignMixedPatternStudents(classroom, seats, remainingStudents, random);
     optimizeMixedSeatAssignments(classroom, seats);
     return seats;
   }
 
-  const buckets = createAssignmentBuckets(classroom, seats);
+  const buckets = createAssignmentBuckets(classroom, seats, random);
 
   remainingStudents.forEach((student) => {
     const nextBucket = pickBalancedBucket(buckets);
@@ -518,13 +627,25 @@ function optimizeMixedSeatAssignments(classroom: Classroom, seats: Seat[]): void
 }
 
 function calculateUnplacedStudents(classroom: Classroom, seats: Seat[]): number {
-  const activeStudentCount = classroom.students.length;
-  const assignedCount = seats.filter((seat) => seat.assignedStudentId).length;
+  const activeStudentIds = new Set(
+    classroom.students.filter((student) => !student.absent).map((student) => student.id),
+  );
+  const activeStudentCount = activeStudentIds.size;
+  const assignedCount = new Set(
+    seats
+      .map((seat) => seat.assignedStudentId)
+      .filter((studentId): studentId is string => studentId !== null)
+      .filter((studentId) => activeStudentIds.has(studentId)),
+  ).size;
   return Math.max(0, activeStudentCount - assignedCount);
 }
 
-export function randomizeSeats(classroom: Classroom, attempts = 240): RandomizeResult {
-  const availableStudents = classroom.students;
+export function randomizeSeats(
+  classroom: Classroom,
+  attempts = 240,
+  random: RandomSource = Math.random,
+): RandomizeResult {
+  const availableStudents = classroom.students.filter((student) => !student.absent);
   const trialCount = Math.max(24, attempts);
   let bestSeats = cloneSeats(classroom.seats);
   let bestScore = Number.POSITIVE_INFINITY;
@@ -533,11 +654,19 @@ export function randomizeSeats(classroom: Classroom, attempts = 240): RandomizeR
   let bestUnplacedStudents = 0;
 
   for (let attempt = 0; attempt < trialCount; attempt += 1) {
-    const trialSeats = buildTrialSeats(classroom, shuffle(availableStudents));
+    const trialSeats = buildTrialSeats(classroom, shuffle(availableStudents, random), random);
     const conflicts = countConflictViolations(classroom, trialSeats);
     const genderMisses = countGenderMisses(classroom, trialSeats, classroom.randomSettings.genderMode);
     const unplacedStudents = calculateUnplacedStudents(classroom, trialSeats);
-    const score = conflicts * 10_000 + unplacedStudents * 2_000 + genderMisses * 100 + Math.random();
+    const repeatedGroupPairs = countRepeatedGroupPairs(classroom.seats, trialSeats);
+    const repeatedSeatAssignments = countRepeatedSeatAssignments(classroom.seats, trialSeats);
+    const score =
+      conflicts * 1_000_000 +
+      unplacedStudents * 100_000 +
+      genderMisses * 1_000 +
+      repeatedGroupPairs * 10 +
+      repeatedSeatAssignments +
+      random();
 
     if (score < bestScore) {
       bestSeats = trialSeats;
