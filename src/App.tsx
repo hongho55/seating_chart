@@ -473,7 +473,11 @@ function applyPrintLayout(
 }
 
 export default function App() {
-  const [data, setData] = useState<AppData>(() => loadAppData());
+  const [initialLoad] = useState(() => loadAppData());
+  const [data, setData] = useState<AppData>(initialLoad.data);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(initialLoad.error === null);
+  const [storageError, setStorageError] = useState<string | null>(initialLoad.error);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
@@ -508,18 +512,24 @@ export default function App() {
   const revealAudioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
+    if (!autoSaveEnabled) {
+      return;
+    }
     const timeoutId = window.setTimeout(() => {
-      saveAppData(createPersistedAppData(data, basePlanEditSession));
-      setLastSavedAt(new Date().toISOString());
+      const error = saveAppData(createPersistedAppData(data, basePlanEditSession));
+      setStorageError(error);
+      if (!error) {
+        setLastSavedAt(new Date().toISOString());
+      }
     }, 500);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [data, basePlanEditSession]);
+  }, [data, basePlanEditSession, autoSaveEnabled]);
 
   useEffect(() => {
-    saveShowSeatPinButtons(showSeatPinButtons);
+    setPreferenceError(saveShowSeatPinButtons(showSeatPinButtons));
   }, [showSeatPinButtons]);
 
   useEffect(() => {
@@ -1346,7 +1356,9 @@ export default function App() {
       }
 
       setData(importedData);
-      setLastSavedAt(new Date().toISOString());
+      setAutoSaveEnabled(true);
+      setStorageError(null);
+      setLastSavedAt(null);
       setSelectedStudentIds([]);
       setBulkStudents('');
       setRuleDraft({ studentAId: '', studentBId: '' });
@@ -1551,6 +1563,21 @@ export default function App() {
         onChange={handleBackupFileChange}
       />
       <main className="workspace">
+        {storageError || preferenceError ? (
+          <div role="alert">
+            <p>{storageError || preferenceError}</p>
+            {!autoSaveEnabled ? (
+              <button type="button" onClick={() => {
+                if (window.confirm('이전에 저장된 좌석표를 현재 화면 내용으로 덮어쓰고 자동 저장을 다시 시작할까요? 복구가 필요하면 취소하세요.')) {
+                  setAutoSaveEnabled(true);
+                  setStorageError(null);
+                }
+              }}>
+                현재 화면으로 저장 재시작
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {activeClassroom ? (
           <>
             <header className={`topbar ${basePlanEditModeActive ? 'base-plan-edit-active' : ''}`}>
@@ -1600,7 +1627,9 @@ export default function App() {
                   />
                 </div>
                 {basePlanEditModeActive ? <span className="mode-status-pill">기준 배치 편집 중</span> : null}
-                <span className="autosave-pill">자동저장 {formatTime(lastSavedAt)}</span>
+                <span className="autosave-pill">
+                  {!autoSaveEnabled ? '자동저장 중지' : storageError ? '자동저장 실패' : `자동저장 ${formatTime(lastSavedAt)}`}
+                </span>
               </div>
               <div className="topbar-actions">
                 <div

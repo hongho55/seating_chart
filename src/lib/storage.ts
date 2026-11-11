@@ -67,31 +67,46 @@ export function createDefaultData(): AppData {
   };
 }
 
-export function loadAppData(): AppData {
+export interface AppDataLoadResult {
+  data: AppData;
+  error: string | null;
+}
+
+export function loadAppData(): AppDataLoadResult {
   if (typeof window === 'undefined') {
-    return createDefaultData();
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!raw) {
-    return createDefaultData();
+    return { data: createDefaultData(), error: null };
   }
 
   try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw === null) {
+      return { data: createDefaultData(), error: null };
+    }
     const normalized = normalizeAppData(JSON.parse(raw));
-    return normalized.ok ? normalized.value : createDefaultData();
+    if (normalized.ok) {
+      return { data: normalized.value, error: null };
+    }
   } catch {
-    return createDefaultData();
+    // A blocked read or invalid saved value is not a new, empty installation.
   }
+
+  return {
+    data: createDefaultData(),
+    error: '저장된 좌석표를 읽지 못해 자동 저장을 중지했습니다. 기존 저장본은 덮어쓰지 않습니다.',
+  };
 }
 
-export function saveAppData(data: AppData): void {
+export function saveAppData(data: AppData): string | null {
   if (typeof window === 'undefined') {
-    return;
+    return '브라우저 저장소를 사용할 수 없습니다.';
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return null;
+  } catch {
+    return '좌석표를 저장하지 못했습니다. 저장 공간과 브라우저 권한을 확인하고 현재 화면을 백업해 주세요.';
+  }
 }
 
 export function loadShowSeatPinButtons(): boolean {
@@ -99,15 +114,24 @@ export function loadShowSeatPinButtons(): boolean {
     return false;
   }
 
-  return window.localStorage.getItem(SHOW_SEAT_PIN_BUTTONS_KEY) === 'true';
+  try {
+    return window.localStorage.getItem(SHOW_SEAT_PIN_BUTTONS_KEY) === 'true';
+  } catch {
+    return false;
+  }
 }
 
-export function saveShowSeatPinButtons(value: boolean): void {
+export function saveShowSeatPinButtons(value: boolean): string | null {
   if (typeof window === 'undefined') {
-    return;
+    return '브라우저 저장소를 사용할 수 없습니다.';
   }
 
-  window.localStorage.setItem(SHOW_SEAT_PIN_BUTTONS_KEY, value ? 'true' : 'false');
+  try {
+    window.localStorage.setItem(SHOW_SEAT_PIN_BUTTONS_KEY, value ? 'true' : 'false');
+    return null;
+  } catch {
+    return '좌석 고정 버튼 표시 설정을 저장하지 못했습니다.';
+  }
 }
 
 export type { BackupParseResult } from './backupParser';
